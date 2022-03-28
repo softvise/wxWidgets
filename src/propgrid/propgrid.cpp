@@ -1321,14 +1321,14 @@ void wxPropertyGrid::CalculateFontAndBitmapStuff( int vspacing )
         m_gutterWidth = gutterWidthMin;
 
     // [sv] - Made the values DPI-aware.
-    int vSpacingMax = FromDIP(3);
+    int vdiv = FromDIP(6);
     if ( vspacing <= FromDIP(1) )
     {
         vdiv = FromDIP(12);
     }
     else
     {
-        int vdiv = FromDIP(6);
+        int vSpacingMax = FromDIP(3);
         if ( vspacing >= vSpacingMax )
             vdiv = vSpacingMax;
     }
