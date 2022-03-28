@@ -1316,19 +1316,27 @@ void wxPropertyGrid::CalculateFontAndBitmapStuff( int vspacing )
 
     // [sv] - Made the values DPI-aware.
     m_gutterWidth = m_iconWidth / wxPG_GUTTER_DIV;
-    if ( const auto gutterWidthMin = FromDIP(wxPG_GUTTER_MIN); m_gutterWidth < gutterWidthMin )
+    int gutterWidthMin = FromDIP(wxPG_GUTTER_MIN);
+    if ( m_gutterWidth < gutterWidthMin )
         m_gutterWidth = gutterWidthMin;
 
     // [sv] - Made the values DPI-aware.
-    int vdiv = FromDIP(6);
+    int vSpacingMax = FromDIP(3);
     if ( vspacing <= FromDIP(1) )
+    {
         vdiv = FromDIP(12);
-    else if ( const auto vSpacingMax = FromDIP(3); vspacing >= vSpacingMax )
-        vdiv = vSpacingMax;
+    }
+    else
+    {
+        int vdiv = FromDIP(6);
+        if ( vspacing >= vSpacingMax )
+            vdiv = vSpacingMax;
+    }
 
     // [sv] - Made the values DPI-aware.
     m_spacingy = m_fontHeight / vdiv;
-    if ( const auto ySpacingMin = FromDIP(wxPG_YSPACING_MIN); m_spacingy < ySpacingMin )
+    int ySpacingMin = FromDIP(wxPG_YSPACING_MIN);
+    if ( m_spacingy < ySpacingMin )
         m_spacingy = ySpacingMin;
 
     m_marginWidth = 0;
