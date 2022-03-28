@@ -1314,17 +1314,22 @@ void wxPropertyGrid::CalculateFontAndBitmapStuff( int vspacing )
 
 #endif
 
+    // [sv] - Made the values DPI-aware.
     m_gutterWidth = m_iconWidth / wxPG_GUTTER_DIV;
-    if ( m_gutterWidth < wxPG_GUTTER_MIN )
-        m_gutterWidth = wxPG_GUTTER_MIN;
+    if ( const auto gutterWidthMin = FromDIP(wxPG_GUTTER_MIN); m_gutterWidth < gutterWidthMin )
+        m_gutterWidth = gutterWidthMin;
 
-    int vdiv = 6;
-    if ( vspacing <= 1 ) vdiv = 12;
-    else if ( vspacing >= 3 ) vdiv = 3;
+    // [sv] - Made the values DPI-aware.
+    int vdiv = FromDIP(6);
+    if ( vspacing <= FromDIP(1) )
+        vdiv = FromDIP(12);
+    else if ( const auto vSpacingMax = FromDIP(3); vspacing >= vSpacingMax )
+        vdiv = vSpacingMax;
 
+    // [sv] - Made the values DPI-aware.
     m_spacingy = m_fontHeight / vdiv;
-    if ( m_spacingy < wxPG_YSPACING_MIN )
-        m_spacingy = wxPG_YSPACING_MIN;
+    if ( const auto ySpacingMin = FromDIP(wxPG_YSPACING_MIN); m_spacingy < ySpacingMin )
+        m_spacingy = ySpacingMin;
 
     m_marginWidth = 0;
     if ( !(m_windowStyle & wxPG_HIDE_MARGIN) )
@@ -1333,7 +1338,8 @@ void wxPropertyGrid::CalculateFontAndBitmapStuff( int vspacing )
     m_captionFont.SetWeight(wxFONTWEIGHT_BOLD);
     GetTextExtent(wxS("jG"), &x, &y, 0, 0, &m_captionFont);
 
-    m_lineHeight = m_fontHeight+(2*m_spacingy)+1;
+    // [sv] - Made the values DPI-aware.
+    m_lineHeight = m_fontHeight+(2*m_spacingy)+FromDIP(1);
 
     // button spacing
     m_buttonSpacingY = (m_lineHeight - m_iconHeight) / 2;
