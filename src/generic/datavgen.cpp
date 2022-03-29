@@ -2418,6 +2418,12 @@ wxDragResult wxDataViewMainWindow::OnData(wxDataFormat format, wxCoord x, wxCoor
 void wxDataViewMainWindow::OnLeave()
 {
     RemoveDropHint();
+
+    // [sv] Add event wxEVT_DATAVIEW_ITEM_DRAG_LEAVE to signal to the owner
+    //      window that the mouse was moved outside this window and that
+    //      another window will now receive the drop messages.
+    wxDataViewEvent event(wxEVT_DATAVIEW_ITEM_DRAG_LEAVE, m_owner, wxDataViewItem());
+    m_owner->HandleWindowEvent( event );
 }
 
 wxBitmap wxDataViewMainWindow::CreateItemBitmap( unsigned int row, int &indent )
