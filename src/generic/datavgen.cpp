@@ -895,17 +895,10 @@ public:
     bool HasChildren( unsigned int row ) const;
 
 #if wxUSE_DRAG_AND_DROP
-    enum DropHint
-    {
-        DropHint_None = 0,
-        DropHint_Inside,
-        DropHint_Below,
-        DropHint_Above
-    };
     struct DropItemInfo
     {
         unsigned int        m_row;
-        DropHint            m_hint;
+        int                 m_dropHint;
 
         wxDataViewItem      m_item;
         int                 m_proposedDropIndex;
@@ -913,7 +906,7 @@ public:
 
         DropItemInfo()
         :   m_row(static_cast<unsigned int>(-1))
-        ,   m_hint(DropHint_None)
+        ,   m_dropHint(wxDV_DROP_HINT_NONE)
         ,   m_item(NULL)
         ,   m_proposedDropIndex(-1)
         ,   m_indentLevel(-1)
@@ -2045,6 +2038,22 @@ wxBEGIN_EVENT_TABLE(wxDataViewMainWindow,wxWindow)
     EVT_CHAR          (wxDataViewMainWindow::OnChar)
 wxEND_EVENT_TABLE()
 
+namespace
+{
+
+    int makeBorderDropHintHeight(int itemHeight)
+    {
+        // Make the drop hint rect one eighth of the item height.
+        // Together with the hint of the ajcacent item the hint is roughly
+        // a quarter of the item high.
+        // In case the item height is less than 8 we make the border
+        // only one pixel high.
+        // In case item height is less than 5 drop hint height is set to 0.
+        return itemHeight < 8 ? itemHeight / 5 : itemHeight / 8;
+    }
+
+} // anonymous namespace
+
 wxDataViewMainWindow::wxDataViewMainWindow( wxDataViewCtrl *parent, wxWindowID id,
     const wxPoint &pos, const wxSize &size, const wxString &name )
 {
@@ -2152,27 +2161,15 @@ bool wxDataViewMainWindow::EnableDragSource( const wxDataFormat &format )
 
 void wxDataViewMainWindow::RefreshDropHint()
 {
-    const unsigned row = m_dropItemInfo.m_row;
+    const unsigned int row = m_dropItemInfo.m_row;
 
-    switch (m_dropItemInfo.m_hint)
-    {
-        case DropHint_None:
-            break;
-
-        case DropHint_Inside:
-            RefreshRow(row);
-            break;
-
-        case DropHint_Above:
-            RefreshRows(row == 0 ? 0 : row - 1, row);
-            break;
-
-        case DropHint_Below:
-            // It's not a problem here if row+1 is out of range, RefreshRows()
-            // allows this.
-            RefreshRows(row, row + 1);
-            break;
-    }
+    if ((m_dropItemInfo.m_dropHint & wxDV_DROP_HINT_ABOVE) != 0)
+        RefreshRows(row == 0 ? row : row-1, row);
+    else if ((m_dropItemInfo.m_dropHint & wxDV_DROP_HINT_BELOW) != 0)
+        // It's not a problem here if endRow+1 is out of range, RefreshRows() allows this.
+        RefreshRows(row, row+1);
+    else if ((m_dropItemInfo.m_dropHint & wxDV_DROP_HINT_INSIDE) != 0)
+        RefreshRow(row);
 }
 
 void wxDataViewMainWindow::RemoveDropHint()
@@ -2196,35 +2193,51 @@ wxDataViewMainWindow::DropItemInfo wxDataViewMainWindow::GetDropItemInfo(const w
     if (row >= GetRowCount() || xx > GetEndOfLastCol())
         return dropItemInfo;
 
-    if (IsVirtualList())
-    {
-        dropItemInfo.m_item = GetItemByRow(row);
+    const bool isTree = !IsVirtualList();
 
-        if (dropItemInfo.m_item.IsOk())
-            dropItemInfo.m_hint = DropHint_Inside;
-    }
-    else
+    wxDataViewTreeNode* node = NULL;
+    if (isTree)
     {
-        wxDataViewTreeNode* node = GetTreeNodeByRow(row);
+        node = GetTreeNodeByRow(row);
         if (!node)
             return dropItemInfo;
 
         dropItemInfo.m_item = node->GetItem();
+    }
+    else
+    {
+        dropItemInfo.m_item = GetItemByRow(row);
 
-        const int itemStart = GetLineStart(row);
-        const int itemHeight = GetLineHeight(row);
+        if (!dropItemInfo.m_item.IsOk())
+            return dropItemInfo;
+    }
 
-        // 15% is an arbitrarily chosen threshold here, which could be changed
-        // or made configurable if really needed.
-        static const double UPPER_ITEM_PART = 0.15;
+    const int itemStart = GetLineStart(row);
+    const int itemHeight = GetLineHeight(row);
 
-        bool insertAbove = yy - itemStart < itemHeight*UPPER_ITEM_PART;
-        if (insertAbove)
+    const int yDistanceFromItemStart = yy - itemStart;
+
+    const bool insertAbove = yDistanceFromItemStart < itemHeight/2;
+    if (insertAbove)
+        dropItemInfo.m_dropHint = wxDV_DROP_HINT_ABOVE;
+    else
+        dropItemInfo.m_dropHint = wxDV_DROP_HINT_BELOW;
+
+    const int borderDropHintHeight = makeBorderDropHintHeight(itemHeight);
+    const int insideDropHintHeight = itemHeight - 2 * borderDropHintHeight;
+
+    const bool insertInside = yDistanceFromItemStart > borderDropHintHeight &&
+                              yDistanceFromItemStart <= borderDropHintHeight + insideDropHintHeight;
+    if (insertInside)
+        dropItemInfo.m_dropHint |= wxDV_DROP_HINT_INSIDE;
+
+    if (isTree)
+    {
+        if ((dropItemInfo.m_dropHint & wxDV_DROP_HINT_ABOVE) != 0)
         {
             // Can be treated as 'insertBelow" with the small difference:
-            node = GetTreeNodeByRow(row - 1);   // We need the node from the previous row
-
-            dropItemInfo.m_hint = DropHint_Above;
+            // We need the node from the previous row
+            node = GetTreeNodeByRow(row - 1);
 
             if (!node)
             {
@@ -2236,14 +2249,9 @@ wxDataViewMainWindow::DropItemInfo wxDataViewMainWindow::GetDropItemInfo(const w
 
                 return dropItemInfo;
             }
-
         }
 
-        bool insertBelow = yy - itemStart > itemHeight*(1.0 - UPPER_ITEM_PART);
-        if (insertBelow)
-            dropItemInfo.m_hint = DropHint_Below;
-
-        if (insertBelow || insertAbove)
+        if ((dropItemInfo.m_dropHint & (wxDV_DROP_HINT_ABOVE | wxDV_DROP_HINT_BELOW)) != 0)
         {
             // Insert inside the 'item' or after (below) it. Depends on:
             // 1 - the 'item' is a container
@@ -2309,10 +2317,6 @@ wxDataViewMainWindow::DropItemInfo wxDataViewMainWindow::GetDropItemInfo(const w
                 --level;
             }
         }
-        else
-        {
-            dropItemInfo.m_hint = DropHint_Inside;
-        }
     }
 
     return dropItemInfo;
@@ -2326,6 +2330,7 @@ wxDragResult wxDataViewMainWindow::OnDragOver( wxDataFormat format, wxCoord x,
 
     wxDataViewEvent event(wxEVT_DATAVIEW_ITEM_DROP_POSSIBLE, m_owner, nextDropItemInfo.m_item);
     event.SetProposedDropIndex(nextDropItemInfo.m_proposedDropIndex);
+    event.SetDropHint(nextDropItemInfo.m_dropHint);
     event.SetDataFormat( format );
     event.SetDropEffect( def );
 
@@ -2351,6 +2356,10 @@ wxDragResult wxDataViewMainWindow::OnDragOver( wxDataFormat format, wxCoord x,
                 return result;
             }
         }
+
+        // In case the user changes the drop hint we record the change and visualize
+        // the appropriate drop hint.
+        nextDropItemInfo.m_dropHint = event.GetDropHint();
     }
     else
     {
@@ -2358,16 +2367,16 @@ wxDragResult wxDataViewMainWindow::OnDragOver( wxDataFormat format, wxCoord x,
         return wxDragNone;
     }
 
-    if (nextDropItemInfo.m_hint != DropHint_None)
+    if (nextDropItemInfo.m_dropHint != wxDV_DROP_HINT_NONE)
     {
-        if (m_dropItemInfo.m_hint != nextDropItemInfo.m_hint ||
+        if (m_dropItemInfo.m_dropHint != nextDropItemInfo.m_dropHint ||
             m_dropItemInfo.m_row != nextDropItemInfo.m_row)
         {
             RefreshDropHint();   // refresh previous rows
         }
 
-        m_dropItemInfo.m_hint   = nextDropItemInfo.m_hint;
-        m_dropItemInfo.m_row    = nextDropItemInfo.m_row;
+        m_dropItemInfo.m_dropHint = nextDropItemInfo.m_dropHint;
+        m_dropItemInfo.m_row      = nextDropItemInfo.m_row;
 
         RefreshDropHint();
     }
@@ -2389,6 +2398,7 @@ bool wxDataViewMainWindow::OnDrop( wxDataFormat format, wxCoord x, wxCoord y )
 
     wxDataViewEvent event(wxEVT_DATAVIEW_ITEM_DROP_POSSIBLE, m_owner, dropItemInfo.m_item);
     event.SetProposedDropIndex(dropItemInfo.m_proposedDropIndex);
+    event.SetDropHint(dropItemInfo.m_dropHint);
     event.SetDataFormat( format );
     if (!m_owner->HandleWindowEvent( event ) || !event.IsAllowed())
         return false;
@@ -2407,6 +2417,7 @@ wxDragResult wxDataViewMainWindow::OnData(wxDataFormat format, wxCoord x, wxCoor
 
     wxDataViewEvent event(wxEVT_DATAVIEW_ITEM_DROP, m_owner, dropItemInfo.m_item);
     event.SetProposedDropIndex(dropItemInfo.m_proposedDropIndex);
+    event.SetDropHint(dropItemInfo.m_dropHint);
     event.InitData(obj, format);
     event.SetDropEffect( def );
     if ( !m_owner->HandleWindowEvent( event ) || !event.IsAllowed() )
@@ -2780,181 +2791,215 @@ void wxDataViewMainWindow::OnPaint( wxPaintEvent &WXUNUSED(event) )
         cur_line_start += line_height;
     }
 
-#if wxUSE_DRAG_AND_DROP
-    wxRect dropItemRect;
-
-    if (m_dropItemInfo.m_hint == DropHint_Inside)
-    {
-        int rect_y = GetLineStart(m_dropItemInfo.m_row);
-        int rect_h = GetLineHeight(m_dropItemInfo.m_row);
-        wxRect rect(x_start, rect_y, x_last - x_start,  rect_h);
-
-        wxRendererNative::Get().DrawItemSelectionRect(this, dc, rect, wxCONTROL_SELECTED | wxCONTROL_FOCUSED);
-    }
-#endif // wxUSE_DRAG_AND_DROP
-
     wxDataViewColumn * const
         expander = GetExpanderColumnOrFirstOne(GetOwner());
 
+    // Get expander size
+    const wxSize expSize = wxRendererNative::Get().GetExpanderSize(this);
+
     // redraw all cells for all rows which must be repainted and all columns
-    wxRect cell_rect;
-    cell_rect.x = x_start;
-    for (unsigned int i = col_start; i < col_last; i++)
     {
-        wxDataViewColumn *col = GetOwner()->GetColumnAt( i );
-        if ( col->IsHidden() )
-            continue;       // skip it!
-
-        wxDataViewRenderer *cell = col->GetRenderer();
-        cell_rect.width = col->GetWidth();
-        if ( cell_rect.width <= 0 )
-            continue;
-
-        cell_rect.y = first_line_start;
-        for (unsigned int item = item_start; item < item_last; item++)
+        wxRect cell_rect;
+        cell_rect.x = x_start;
+        for (unsigned int i = col_start; i < col_last; i++)
         {
-            // get the cell value and set it into the renderer
-            wxDataViewTreeNode *node = NULL;
-            wxDataViewItem dataitem;
-            const int line_height = GetLineHeight(item);
-            bool hasValue = true;
+            wxDataViewColumn *col = GetOwner()->GetColumnAt( i );
+            if ( col->IsHidden() )
+                continue;       // skip it!
 
-            if (!IsVirtualList())
+            cell_rect.width = col->GetWidth();
+            if ( cell_rect.width <= 0 )
+                continue;
+
+            wxDataViewRenderer *cell = col->GetRenderer();
+
+            cell_rect.y = first_line_start;
+            for (unsigned int item = item_start; item < item_last; item++)
             {
-                node = GetTreeNodeByRow(item);
-                if (node == NULL)
+                // get the cell value and set it into the renderer
+                wxDataViewTreeNode *node = NULL;
+                wxDataViewItem dataitem;
+                const int line_height = GetLineHeight(item);
+                bool hasValue = true;
+
+                if (!IsVirtualList())
+                {
+                    node = GetTreeNodeByRow(item);
+                    if (node == NULL)
+                    {
+                        cell_rect.y += line_height;
+                        continue;
+                    }
+
+                    dataitem = node->GetItem();
+
+                    if ( !model->HasValue(dataitem, col->GetModelColumn()) )
+                        hasValue = false;
+
+                }
+                else
+                {
+                    dataitem = wxDataViewItem( wxUIntToPtr(item+1) );
+                }
+
+                // update cell_rect
+                cell_rect.height = line_height;
+
+                bool selected = m_selection.IsSelected(item);
+
+                int state = 0;
+                if (selected)
+                    state |= wxDATAVIEW_CELL_SELECTED;
+
+                cell->SetState(state);
+                if (hasValue)
+                    hasValue = cell->PrepareForItem(model, dataitem, col->GetModelColumn());
+
+                // draw the background
+                if ( !selected )
+                    DrawCellBackground( cell, dc, cell_rect );
+
+#if wxUSE_DRAG_AND_DROP
+                wxRect dropItemRect = cell_rect;
+
+                bool drawDropHint = m_dropItemInfo.m_dropHint != wxDV_DROP_HINT_NONE &&
+                                    item == m_dropItemInfo.m_row;
+                int dropHint = m_dropItemInfo.m_dropHint;
+
+                // In case the drop hint is "below" or "above" we also draw the drop hint for
+                // the adjancent items. This way, we get a complete hint spanning the drop item
+                // and its neighbour.
+                if (!drawDropHint)
+                {
+                    if (m_dropItemInfo.m_dropHint == wxDV_DROP_HINT_BELOW &&
+                        item == m_dropItemInfo.m_row + 1)
+                    {
+                        // The current item is the item below the drop item.
+                        // Render a drop hint above it.
+                        drawDropHint = true;
+                        dropHint = wxDV_DROP_HINT_ABOVE;
+                    }
+                    if (m_dropItemInfo.m_dropHint == wxDV_DROP_HINT_ABOVE &&
+                        item + 1 == m_dropItemInfo.m_row)
+                    {
+                        // The current item is the item above the drop item.
+                        // Render a drop hint below it.
+                        drawDropHint = true;
+                        dropHint = wxDV_DROP_HINT_BELOW;
+                    }
+                }
+#endif // wxUSE_DRAG_AND_DROP
+
+                // deal with the expander
+                int indent = 0;
+                if ((!IsList()) && (col == expander))
+                {
+                    // Calculate the indent first
+                    indent = GetOwner()->GetIndent() * node->GetIndentLevel();
+
+                    // draw expander if needed
+                    if ( node->HasChildren() )
+                    {
+                        wxRect rect = cell_rect;
+                        rect.x += indent;
+                        rect.y += (cell_rect.GetHeight() - expSize.GetHeight()) / 2; // center vertically
+                        rect.width = expSize.GetWidth();
+                        rect.height = expSize.GetHeight();
+
+                        int flag = 0;
+                        if ( m_underMouse == node )
+                            flag |= wxCONTROL_CURRENT;
+                        if ( node->IsOpen() )
+                            flag |= wxCONTROL_EXPANDED;
+
+                        // ensure that we don't overflow the cell (which might
+                        // happen if the column is very narrow)
+                        wxDCClipper clip(dc, cell_rect);
+
+                        wxRendererNative::Get().DrawTreeItemButton( this, dc, rect, flag);
+                    }
+
+                    indent += expSize.GetWidth();
+
+                    // force the expander column to left-center align
+                    cell->SetAlignment( wxALIGN_CENTER_VERTICAL );
+
+#if wxUSE_DRAG_AND_DROP
+                    // In case we render a drop hint for dropping above or below the item,
+                    // take the expander column and a possible indent level into account.
+                    if (drawDropHint &&
+                        (dropHint == wxDV_DROP_HINT_ABOVE || dropHint == wxDV_DROP_HINT_BELOW))
+                    {
+                        dropItemRect.x += expSize.GetWidth();
+                        dropItemRect.width -= expSize.GetWidth();
+                        if (m_dropItemInfo.m_indentLevel >= 0)
+                        {
+                            int hintIndent = GetOwner()->GetIndent()*m_dropItemInfo.m_indentLevel;
+                            dropItemRect.x += hintIndent;
+                            dropItemRect.width -= hintIndent;
+                        }
+                    }
+#endif // wxUSE_DRAG_AND_DROP
+                }
+
+#if wxUSE_DRAG_AND_DROP
+                if (drawDropHint)
+                {
+                    const int borderDropHintHeight = makeBorderDropHintHeight(dropItemRect.height);
+                    const int insideDropHintHeight = dropItemRect.height - 2 * borderDropHintHeight;
+
+                    if (dropHint == wxDV_DROP_HINT_BELOW || dropHint == wxDV_DROP_HINT_ABOVE)
+                    {
+                        if (dropHint == wxDV_DROP_HINT_BELOW)
+                            dropItemRect.y += borderDropHintHeight + insideDropHintHeight;
+    
+                        dropItemRect.height = borderDropHintHeight;
+                    }
+                    else
+                    {
+                        // Center the drop hint within the cell_rect
+                        dropItemRect.y += borderDropHintHeight;
+
+                        dropItemRect.height = insideDropHintHeight;
+                    }
+
+                    wxRendererNative::Get().DrawItemSelectionRect(this, dc, dropItemRect,
+                                                                  wxCONTROL_SELECTED | wxCONTROL_FOCUSED);
+                }
+#endif // wxUSE_DRAG_AND_DROP
+
+                wxRect item_rect = cell_rect;
+                item_rect.Deflate(PADDING_RIGHTLEFT, 0);
+
+                // account for the tree indent (harmless if we're not indented)
+                item_rect.x += indent;
+                item_rect.width -= indent;
+
+                if ( item_rect.width <= 0 )
                 {
                     cell_rect.y += line_height;
                     continue;
                 }
 
-                dataitem = node->GetItem();
+                // TODO: it would be much more efficient to create a clipping
+                //       region for the entire column being rendered (in the OnPaint
+                //       of wxDataViewMainWindow) instead of a single clip region for
+                //       each cell. However it would mean that each renderer should
+                //       respect the given wxRect's top & bottom coords, eventually
+                //       violating only the left & right coords - however the user can
+                //       make its own renderer and thus we cannot be sure of that.
+                wxDCClipper clip(dc, item_rect);
 
-                if ( !model->HasValue(dataitem, col->GetModelColumn()) )
-                    hasValue = false;
+                if (hasValue)
+                    cell->WXCallRender(item_rect, &dc, state);
 
-            }
-            else
-            {
-                dataitem = wxDataViewItem( wxUIntToPtr(item+1) );
-            }
-
-            // update cell_rect
-            cell_rect.height = line_height;
-
-            bool selected = m_selection.IsSelected(item);
-
-            int state = 0;
-            if (selected)
-                state |= wxDATAVIEW_CELL_SELECTED;
-
-            cell->SetState(state);
-            if (hasValue)
-                hasValue = cell->PrepareForItem(model, dataitem, col->GetModelColumn());
-
-            // draw the background
-            if ( !selected )
-                DrawCellBackground( cell, dc, cell_rect );
-
-            // deal with the expander
-            int indent = 0;
-            if ((!IsList()) && (col == expander))
-            {
-                // Calculate the indent first
-                indent = GetOwner()->GetIndent() * node->GetIndentLevel();
-
-                // Get expander size
-                wxSize expSize = wxRendererNative::Get().GetExpanderSize(this);
-
-                // draw expander if needed
-                if ( node->HasChildren() )
-                {
-                    wxRect rect = cell_rect;
-                    rect.x += indent;
-                    rect.y += (cell_rect.GetHeight() - expSize.GetHeight()) / 2; // center vertically
-                    rect.width = expSize.GetWidth();
-                    rect.height = expSize.GetHeight();
-
-                    int flag = 0;
-                    if ( m_underMouse == node )
-                        flag |= wxCONTROL_CURRENT;
-                    if ( node->IsOpen() )
-                        flag |= wxCONTROL_EXPANDED;
-
-                    // ensure that we don't overflow the cell (which might
-                    // happen if the column is very narrow)
-                    wxDCClipper clip(dc, cell_rect);
-
-                    wxRendererNative::Get().DrawTreeItemButton( this, dc, rect, flag);
-                }
-
-                indent += expSize.GetWidth();
-
-                // force the expander column to left-center align
-                cell->SetAlignment( wxALIGN_CENTER_VERTICAL );
-
-#if wxUSE_DRAG_AND_DROP
-                if (item == m_dropItemInfo.m_row)
-                {
-                    dropItemRect = cell_rect;
-                    dropItemRect.x += expSize.GetWidth();
-                    dropItemRect.width -= expSize.GetWidth();
-                    if (m_dropItemInfo.m_indentLevel >= 0)
-                    {
-                        int hintIndent = GetOwner()->GetIndent()*m_dropItemInfo.m_indentLevel;
-                        dropItemRect.x += hintIndent;
-                        dropItemRect.width -= hintIndent;
-                    }
-                }
-#endif
-            }
-
-            wxRect item_rect = cell_rect;
-            item_rect.Deflate(PADDING_RIGHTLEFT, 0);
-
-            // account for the tree indent (harmless if we're not indented)
-            item_rect.x += indent;
-            item_rect.width -= indent;
-
-            if ( item_rect.width <= 0 )
-            {
                 cell_rect.y += line_height;
-                continue;
             }
 
-            // TODO: it would be much more efficient to create a clipping
-            //       region for the entire column being rendered (in the OnPaint
-            //       of wxDataViewMainWindow) instead of a single clip region for
-            //       each cell. However it would mean that each renderer should
-            //       respect the given wxRect's top & bottom coords, eventually
-            //       violating only the left & right coords - however the user can
-            //       make its own renderer and thus we cannot be sure of that.
-            wxDCClipper clip(dc, item_rect);
-
-            if (hasValue)
-                cell->WXCallRender(item_rect, &dc, state);
-
-            cell_rect.y += line_height;
+            cell_rect.x += cell_rect.width;
         }
-
-        cell_rect.x += cell_rect.width;
     }
-
-#if wxUSE_DRAG_AND_DROP
-    if (m_dropItemInfo.m_hint == DropHint_Below || m_dropItemInfo.m_hint == DropHint_Above)
-    {
-        const int insertLineHeight = 2;     // TODO: setup (should be even)
-
-        int rect_y = dropItemRect.y - insertLineHeight/2;     // top insert
-        if (m_dropItemInfo.m_hint == DropHint_Below)
-            rect_y += dropItemRect.height;                    // bottom insert
-
-        wxRect rect(dropItemRect.x, rect_y, dropItemRect.width, insertLineHeight);
-        wxRendererNative::Get().DrawItemSelectionRect(this, dc, rect, wxCONTROL_SELECTED);
-    }
-#endif // wxUSE_DRAG_AND_DROP
 }
-
 
 void wxDataViewMainWindow::DrawCellBackground( wxDataViewRenderer* cell, wxDC& dc, const wxRect& rect )
 {

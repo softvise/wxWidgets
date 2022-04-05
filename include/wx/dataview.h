@@ -842,6 +842,16 @@ protected:
 // wxDataViewEvent - the event class for the wxDataViewCtrl notifications
 // ----------------------------------------------------------------------------
 
+#if wxUSE_DRAG_AND_DROP
+// Drop hints signal the position of the mouse over the item:
+// inside means the mouse is over the centre of the item, above and below
+// state that the mouse is close to the upper or lower border of the item.
+#define wxDV_DROP_HINT_NONE   0x0000     // drop impossible or not supported
+#define wxDV_DROP_HINT_INSIDE 0x0001     // drop inside the item
+#define wxDV_DROP_HINT_BELOW  0x0010     // drop below the item
+#define wxDV_DROP_HINT_ABOVE  0x0020     // drop after the item
+#endif
+
 class WXDLLIMPEXP_CORE wxDataViewEvent : public wxNotifyEvent
 {
 public:
