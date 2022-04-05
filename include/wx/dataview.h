@@ -850,6 +850,9 @@ protected:
 #define wxDV_DROP_HINT_INSIDE 0x0001     // drop inside the item
 #define wxDV_DROP_HINT_BELOW  0x0010     // drop below the item
 #define wxDV_DROP_HINT_ABOVE  0x0020     // drop after the item
+
+// Additional style to enable automatic scrolling during drag & drop
+#define wxDV_SCROLL_ON_DRAG 0x0100       // scroll on drag when over upper or lower border
 #endif
 
 class WXDLLIMPEXP_CORE wxDataViewEvent : public wxNotifyEvent
@@ -900,7 +903,8 @@ public:
         m_dataSize(event.m_dataSize),
         m_dragFlags(event.m_dragFlags),
         m_dropEffect(event.m_dropEffect),
-        m_proposedDropIndex(event.m_proposedDropIndex)
+        m_proposedDropIndex(event.m_proposedDropIndex),
+        m_dropHint(event.m_proposedDropIndex)
 #endif
         { }
 
@@ -947,6 +951,8 @@ public:
     // insertion of items, this is the proposed child index for the insertion.
     void SetProposedDropIndex(int index) { m_proposedDropIndex = index; }
     int GetProposedDropIndex() const { return m_proposedDropIndex;}
+    void SetDropHint(int hint) { m_dropHint = hint; }
+    int GetDropHint() const { return m_dropHint; }
 
     // Internal, only used by wxWidgets itself.
     void InitData(wxDataObjectComposite* obj, wxDataFormat format);
@@ -991,6 +997,7 @@ protected:
     int                 m_dragFlags;
     wxDragResult        m_dropEffect;
     int                 m_proposedDropIndex;
+    int                 m_dropHint;
 #endif // wxUSE_DRAG_AND_DROP
 
 private:

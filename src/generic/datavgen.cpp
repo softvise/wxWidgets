@@ -776,6 +776,7 @@ public:
 
 #if wxUSE_DRAG_AND_DROP
     wxBitmap CreateItemBitmap( unsigned int row, int &indent );
+    void OnTimer( wxTimerEvent &event );
 #endif // wxUSE_DRAG_AND_DROP
     void OnPaint( wxPaintEvent &event );
     void OnCharHook( wxKeyEvent &event );
@@ -1031,6 +1032,9 @@ private:
     wxDataFormat                m_dragFormat;
 
     DropItemInfo                m_dropItemInfo;
+    wxTimer                     m_beginScrollTimer;
+    wxTimer                     m_doScrollTimer;
+    int                         m_scrollLines;
 #endif // wxUSE_DRAG_AND_DROP
 
     // for double click logic
@@ -2036,10 +2040,19 @@ wxBEGIN_EVENT_TABLE(wxDataViewMainWindow,wxWindow)
     EVT_KILL_FOCUS    (wxDataViewMainWindow::OnKillFocus)
     EVT_CHAR_HOOK     (wxDataViewMainWindow::OnCharHook)
     EVT_CHAR          (wxDataViewMainWindow::OnChar)
+
+#if wxUSE_DRAG_AND_DROP
+    EVT_TIMER (wxID_ANY, wxDataViewMainWindow::OnTimer)
+#endif // wxUSE_DRAG_AND_DROP
 wxEND_EVENT_TABLE()
 
 namespace
 {
+
+#if wxUSE_DRAG_AND_DROP
+    int const ID_TIMER_DND_BEGIN_SCROLL = 1;
+    int const ID_TIMER_DND_DO_SCROLL = 2;
+#endif // wxUSE_DRAG_AND_DROP
 
     int makeBorderDropHintHeight(int itemHeight)
     {
@@ -2103,6 +2116,10 @@ wxDataViewMainWindow::wxDataViewMainWindow( wxDataViewCtrl *parent, wxWindowID i
 
     m_dragEnabled = false;
     m_dropItemInfo = DropItemInfo();
+
+    m_beginScrollTimer.SetOwner(this, ID_TIMER_DND_BEGIN_SCROLL);
+    m_doScrollTimer.SetOwner(this, ID_TIMER_DND_DO_SCROLL);
+    m_scrollLines = 0;
 #endif // wxUSE_DRAG_AND_DROP
 
     m_lineLastClicked = (unsigned int) -1;
@@ -2128,6 +2145,11 @@ wxDataViewMainWindow::wxDataViewMainWindow( wxDataViewCtrl *parent, wxWindowID i
 
 wxDataViewMainWindow::~wxDataViewMainWindow()
 {
+#if wxUSE_DRAG_AND_DROP
+    m_beginScrollTimer.Stop();
+    m_doScrollTimer.Stop();
+#endif // wxUSE_DRAG_AND_DROP
+
     DestroyTree();
     delete m_renameTimer;
     delete m_rowHeightCache;
@@ -2326,6 +2348,8 @@ wxDataViewMainWindow::DropItemInfo wxDataViewMainWindow::GetDropItemInfo(const w
 wxDragResult wxDataViewMainWindow::OnDragOver( wxDataFormat format, wxCoord x,
                                                wxCoord y, wxDragResult def )
 {
+    m_scrollLines = 0;
+
     DropItemInfo nextDropItemInfo = GetDropItemInfo(x, y);
 
     wxDataViewEvent event(wxEVT_DATAVIEW_ITEM_DROP_POSSIBLE, m_owner, nextDropItemInfo.m_item);
@@ -2349,9 +2373,17 @@ wxDragResult wxDataViewMainWindow::OnDragOver( wxDataFormat format, wxCoord x,
                 break;
 
             case wxDragNone:
+            {
+                RemoveDropHint();
+                return result;
+            }
+
             case wxDragCancel:
             case wxDragError:
             {
+                m_beginScrollTimer.Stop();
+                m_doScrollTimer.Stop();
+
                 RemoveDropHint();
                 return result;
             }
@@ -2387,11 +2419,76 @@ wxDragResult wxDataViewMainWindow::OnDragOver( wxDataFormat format, wxCoord x,
 
     m_dropItemInfo = nextDropItemInfo;
 
+    if (!m_dropItemInfo.m_item.IsOk())
+    {
+        m_beginScrollTimer.Stop();
+        m_doScrollTimer.Stop();
+    }
+    else if (GetParent()->HasFlag(wxDV_SCROLL_ON_DRAG))
+    {
+        int linePositionX = 0;
+        int linePositionY = GetLineStart(m_dropItemInfo.m_row);
+        GetOwner()->CalcUnscrolledPosition(0, linePositionY, NULL, &linePositionY);
+        ClientToScreen(&linePositionX, &linePositionY);
+
+        const int relativeMousePosY = wxGetMousePosition().y - linePositionY;
+
+        const int oneLine = 1;
+        const int onePage = wxMax(oneLine, GetCountPerPage());
+        const int manyPages = wxMax(onePage, GetScrollRange(wxVERTICAL) / 50);
+
+        static const double FAST_SCROLL_ZONE_PERCENTAGE = 0.05;
+        static const double MEDIUM_SCROLL_ZONE_PERCENTAGE = FAST_SCROLL_ZONE_PERCENTAGE + 0.10;
+        static const double SLOW_SCROLL_ZONE_PERCENTAGE =  MEDIUM_SCROLL_ZONE_PERCENTAGE + 0.15;
+
+        const int lineHeight = GetLineHeight(m_dropItemInfo.m_row);
+
+        // Set a fast, medium and slow scroll zone in pixels. If the mouse is held close to the
+        // upper or lower border of the content area the items are scrolled up or down.
+        // This way, the drop target item can be scrolled into view by holding the mouse over
+        // the upper or lower border during the drag & drop operation.
+        // In case the fast and medium zones are zero, only slow scrolling will work.
+        const int fastScrollZone = static_cast<int>(lineHeight * FAST_SCROLL_ZONE_PERCENTAGE);
+        const int mediumScrollZone = static_cast<int>(lineHeight * MEDIUM_SCROLL_ZONE_PERCENTAGE);
+        // Set a slow scroll zone of at least 3 pixels height.
+        // Otherwise, scrolling will not work or is too difficult to use.
+        const int slowScrollZone = wxMin(3, static_cast<int>(lineHeight * SLOW_SCROLL_ZONE_PERCENTAGE));
+
+        if (relativeMousePosY < fastScrollZone)
+            m_scrollLines = -manyPages;
+        else if (relativeMousePosY < mediumScrollZone)
+            m_scrollLines = -onePage;
+        else if (relativeMousePosY < slowScrollZone)
+            m_scrollLines = -oneLine;
+
+        auto const height = GetClientSize().GetHeight();
+        if (relativeMousePosY >= height - fastScrollZone)
+            m_scrollLines = manyPages;
+        else if (relativeMousePosY >= height - mediumScrollZone)
+            m_scrollLines = onePage;
+        else if (relativeMousePosY >= height - slowScrollZone)
+            m_scrollLines = oneLine;
+
+        if (m_scrollLines == 0)
+        {
+            m_beginScrollTimer.Stop();
+        }
+        else if (!m_beginScrollTimer.IsRunning())
+        {
+            const int delayInMilliseconds = 1000;
+            m_beginScrollTimer.StartOnce(delayInMilliseconds);
+        }
+    }
+
     return result;
 }
 
 bool wxDataViewMainWindow::OnDrop( wxDataFormat format, wxCoord x, wxCoord y )
 {
+    m_scrollLines = 0;
+    m_beginScrollTimer.Stop();
+    m_doScrollTimer.Stop();
+
     RemoveDropHint();
 
     DropItemInfo dropItemInfo = GetDropItemInfo(x, y);
@@ -2409,6 +2506,10 @@ bool wxDataViewMainWindow::OnDrop( wxDataFormat format, wxCoord x, wxCoord y )
 wxDragResult wxDataViewMainWindow::OnData(wxDataFormat format, wxCoord x, wxCoord y,
                                           wxDragResult def)
 {
+    m_scrollLines = 0;
+    m_beginScrollTimer.Stop();
+    m_doScrollTimer.Stop();
+
     DropItemInfo dropItemInfo = GetDropItemInfo(x, y);
 
     wxDataViewDropTarget* const
@@ -2428,6 +2529,10 @@ wxDragResult wxDataViewMainWindow::OnData(wxDataFormat format, wxCoord x, wxCoor
 
 void wxDataViewMainWindow::OnLeave()
 {
+    m_scrollLines = 0;
+    m_beginScrollTimer.Stop();
+    m_doScrollTimer.Stop();
+
     RemoveDropHint();
 
     // [sv] Add event wxEVT_DATAVIEW_ITEM_DRAG_LEAVE to signal to the owner
@@ -5520,6 +5625,37 @@ void wxDataViewMainWindow::OnKillFocus( wxFocusEvent &event )
 
     event.Skip();
 }
+
+#if wxUSE_DRAG_AND_DROP
+void wxDataViewMainWindow::OnTimer( wxTimerEvent &event )
+{
+    const wxTimer& timer = event.GetTimer();
+
+    const int timerId = timer.GetId();
+    switch (timerId)
+    {
+    case ID_TIMER_DND_BEGIN_SCROLL:
+        {
+            if (m_scrollLines != 0)
+                ScrollLines(m_scrollLines);
+
+            const int delayInMilliseconds = 200;
+            m_doScrollTimer.Start(delayInMilliseconds, wxTIMER_CONTINUOUS);
+        }
+        break;
+
+    case ID_TIMER_DND_DO_SCROLL:
+        {
+            if (m_scrollLines != 0)
+                ScrollLines(m_scrollLines);
+        }
+        break;
+
+    default:
+        break;
+    }
+}
+#endif // wxUSE_DRAG_AND_DROP
 
 void wxDataViewMainWindow::OnColumnsCountChanged()
 {
