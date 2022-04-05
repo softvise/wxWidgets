@@ -153,6 +153,8 @@ private:
     void OnSortByFirstColumn( wxCommandEvent &event);
 
 #if wxUSE_DRAG_AND_DROP
+    void OnDropHintInside(wxCommandEvent& event);
+
     void OnBeginDrag( wxDataViewEvent &event );
     void OnDropPossible( wxDataViewEvent &event );
     void OnDrop( wxDataViewEvent &event );
@@ -216,6 +218,11 @@ private:
 private:
     // Flag used by OnListValueChanged(), see there.
     bool m_eventFromProgram;
+
+#if wxUSE_DRAG_AND_DROP
+    // Flag used by OnDropHintInside() and OnDropPossible(), see there.
+    bool m_dropHintInside;
+#endif // wxUSE_DRAG_AND_DROP
 
     wxDECLARE_EVENT_TABLE();
 };
@@ -409,6 +416,9 @@ enum
     ID_STYLE_MENU,
     ID_INC_INDENT,
     ID_DEC_INDENT,
+#if wxUSE_DRAG_AND_DROP
+    ID_DROP_HINT_INSIDE,
+#endif // wxUSE_DRAG_AND_DROP
     ID_LAYOUT_DIR,
 
     // file menu
@@ -546,9 +556,15 @@ wxBEGIN_EVENT_TABLE(MyFrame, wxFrame)
     EVT_DATAVIEW_ITEM_CONTEXT_MENU(ID_MUSIC_CTRL, MyFrame::OnContextMenu)
 
 #if wxUSE_DRAG_AND_DROP
+    EVT_MENU( ID_DROP_HINT_INSIDE, MyFrame::OnDropHintInside )
+
     EVT_DATAVIEW_ITEM_BEGIN_DRAG( ID_MUSIC_CTRL, MyFrame::OnBeginDrag )
     EVT_DATAVIEW_ITEM_DROP_POSSIBLE( ID_MUSIC_CTRL, MyFrame::OnDropPossible )
     EVT_DATAVIEW_ITEM_DROP( ID_MUSIC_CTRL, MyFrame::OnDrop )
+
+    EVT_DATAVIEW_ITEM_BEGIN_DRAG( ID_ATTR_CTRL, MyFrame::OnBeginDrag )
+    EVT_DATAVIEW_ITEM_DROP_POSSIBLE( ID_ATTR_CTRL, MyFrame::OnDropPossible )
+    EVT_DATAVIEW_ITEM_DROP( ID_ATTR_CTRL, MyFrame::OnDrop )
 #endif // wxUSE_DRAG_AND_DROP
 
     EVT_DATAVIEW_COLUMN_HEADER_CLICK(ID_ATTR_CTRL, MyFrame::OnAttrHeaderClick)
@@ -565,6 +581,10 @@ MyFrame::MyFrame(wxFrame *frame, const wxString &title, int x, int y, int w, int
         m_ctrl[page] = NULL;
 
     m_eventFromProgram = false;
+
+#if wxUSE_DRAG_AND_DROP
+    m_dropHintInside = true;
+#endif // wxUSE_DRAG_AND_DROP
 
     SetIcon(wxICON(sample));
 
@@ -612,6 +632,10 @@ MyFrame::MyFrame(wxFrame *frame, const wxString &title, int x, int y, int w, int
     file_menu->Append(wxID_ANY, "Si&ze", size_menu);
     file_menu->Append(ID_INC_INDENT, "&Increase indent\tCtrl-I");
     file_menu->Append(ID_DEC_INDENT, "&Decrease indent\tShift-Ctrl-I");
+#if wxUSE_DRAG_AND_DROP
+    auto *dropHintInsideItem = file_menu->AppendCheckItem(ID_DROP_HINT_INSIDE, "Show drop hint inside items");
+    dropHintInsideItem->Check(m_dropHintInside);
+#endif // wxUSE_DRAG_AND_DROP
     file_menu->AppendSeparator();
     file_menu->AppendCheckItem(ID_LAYOUT_DIR, "Toggle &layout direction\tShift-Ctrl-L");
     file_menu->Check(ID_LAYOUT_DIR, GetLayoutDirection() == wxLayout_RightToLeft);
@@ -900,6 +924,11 @@ void MyFrame::BuildDataViewCtrl(wxPanel* parent, unsigned int nPanel,
 
             m_list_model = new MyListModel(modelFlags);
             m_ctrl[Page_List]->AssociateModel( m_list_model.get() );
+
+#if wxUSE_DRAG_AND_DROP && wxUSE_UNICODE
+            m_ctrl[Page_List]->EnableDragSource( wxDF_UNICODETEXT );
+            m_ctrl[Page_List]->EnableDropTarget( wxDF_UNICODETEXT );
+#endif // wxUSE_DRAG_AND_DROP && wxUSE_UNICODE
 
             wxDataViewColumn* const colCheckIconText = new wxDataViewColumn
                 (
@@ -1398,44 +1427,77 @@ void MyFrame::OnAbout( wxCommandEvent& WXUNUSED(event) )
 
 #if wxUSE_DRAG_AND_DROP
 
+void MyFrame::OnDropHintInside(wxCommandEvent& event)
+{
+    m_dropHintInside = event.IsChecked();
+}
+
 void MyFrame::OnBeginDrag( wxDataViewEvent &event )
 {
     wxDataViewItem item( event.GetItem() );
 
-    // only allow drags for item, not containers
-    if (m_music_model->IsContainer( item ) )
+    wxString text;
+
+    wxDataViewModel* model = event.GetModel();
+    if (model == m_music_model.get())
     {
-        wxLogMessage("Forbidding starting dragging");
-        event.Veto();
-        return;
+        // only allow drags for item, not containers
+        if (m_music_model->IsContainer( item ) )
+        {
+            wxLogMessage("Forbidding starting dragging");
+            event.Veto();
+            return;
+        }
+
+        MyMusicTreeModelNode *node = (MyMusicTreeModelNode*) item.GetID();
+        text = node->m_title;
+    }
+    else if (model == m_list_model.get())
+    {
+        wxVariant variant;
+        m_list_model->GetValue(variant, item, /* col = */ 1);
+        text = variant.GetString();
     }
 
-    MyMusicTreeModelNode *node = (MyMusicTreeModelNode*) item.GetID();
     wxTextDataObject *obj = new wxTextDataObject;
-    obj->SetText( node->m_title );
+    obj->SetText( text );
     event.SetDataObject( obj );
     event.SetDragFlags(wxDrag_AllowMove); // allows both copy and move
 
-    wxLogMessage("Starting dragging \"%s\"", node->m_title);
+    wxLogMessage("Starting dragging \"%s\"", text);
 }
 
 void MyFrame::OnDropPossible( wxDataViewEvent &event )
 {
     if (event.GetDataFormat() != wxDF_UNICODETEXT)
+    {
         event.Veto();
-    else
-        event.SetDropEffect(wxDragMove); // check 'move' drop effect
+        return;
+    }
+
+    if (!m_dropHintInside)
+    {
+        // Do not show a drop hint for the inner area of the item.
+        // This means we only get drop hints above and below the item.
+        // Nevertheless, dropping is still possible and the OnDrop handler
+        // could use the wxDV_DROP_HINT_BELOW or wxDV_DROP_HINT_ABOVE hints
+        // to actually move the dropped item before or after the drop target.
+        int dropHint = event.GetDropHint();
+        event.SetDropHint(dropHint & ~wxDV_DROP_HINT_INSIDE);
+    }
+
+    event.SetDropEffect(wxDragMove); // check 'move' drop effect
 }
 
 void MyFrame::OnDrop( wxDataViewEvent &event )
 {
-    wxDataViewItem item( event.GetItem() );
-
     if (event.GetDataFormat() != wxDF_UNICODETEXT)
     {
         event.Veto();
         return;
     }
+
+    wxDataViewItem item( event.GetItem() );
 
     // Note that instead of recreating a new data object here we could also
     // retrieve the data object from the event, using its GetDataObject()
@@ -1445,18 +1507,48 @@ void MyFrame::OnDrop( wxDataViewEvent &event )
     wxTextDataObject obj;
     obj.SetData( wxDF_UNICODETEXT, event.GetDataSize(), event.GetDataBuffer() );
 
+    wxString dropHintText;
+    int const dropHint = event.GetDropHint();
+    if (dropHint == wxDV_DROP_HINT_NONE)
+        dropHintText = "wxDV_DROP_HINT_NONE";
+    if ((dropHint & wxDV_DROP_HINT_INSIDE) != 0)
+        dropHintText += "wxDV_DROP_HINT_INSIDE ";
+    if ((dropHint & wxDV_DROP_HINT_BELOW) != 0)
+        dropHintText += "wxDV_DROP_HINT_BELOW ";
+    if ((dropHint & wxDV_DROP_HINT_ABOVE) != 0)
+        dropHintText += "wxDV_DROP_HINT_ABOVE ";
+    dropHintText.Trim();
+
+    wxDataViewModel* model = event.GetModel();
+
     if ( item.IsOk() )
     {
-        if (m_music_model->IsContainer(item))
+        if (model == m_music_model.get())
         {
-            wxLogMessage("Text '%s' dropped in container '%s' (proposed index = %i)",
-                         obj.GetText(), m_music_model->GetTitle(item), event.GetProposedDropIndex());
+            if (m_music_model->IsContainer(item))
+                wxLogMessage("Text '%s' dropped in container '%s' (proposed index = %i, drop hint = %s)",
+                             obj.GetText(), m_music_model->GetTitle(item),
+                             event.GetProposedDropIndex(), dropHintText);
+            else
+                wxLogMessage("Text '%s' dropped on item '%s' (drop hint = %s)",
+                             obj.GetText(), m_music_model->GetTitle(item), dropHintText);
         }
-        else
-            wxLogMessage("Text '%s' dropped on item '%s'", obj.GetText(), m_music_model->GetTitle(item));
+        else if (model == m_list_model.get())
+        {
+            wxVariant variant;
+            m_list_model->GetValue(variant, item, /* col = */ 1);
+            wxLogMessage("Text '%s' dropped on item '%s' (drop hint = %s)",
+                         obj.GetText(), variant.GetString(), dropHintText);
+        }
     }
     else
-        wxLogMessage("Text '%s' dropped on background (proposed index = %i)", obj.GetText(), event.GetProposedDropIndex());
+    {
+        if (model == m_music_model.get())
+        {
+            wxLogMessage("Text '%s' dropped on background (proposed index = %i, drop hint = %s)",
+                         obj.GetText(), event.GetProposedDropIndex(), dropHintText);
+        }
+    }
 }
 
 #endif // wxUSE_DRAG_AND_DROP
