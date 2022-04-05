@@ -424,6 +424,9 @@ enum
     // file menu
     //ID_SINGLE,        wxDV_SINGLE==0 so it's always present
     ID_MULTIPLE,
+#if wxUSE_DRAG_AND_DROP
+    ID_SCROLL_ON_DRAG,
+#endif // wxUSE_DRAG_AND_DROP
     ID_ROW_LINES,
     ID_HORIZ_RULES,
     ID_VERT_RULES,
@@ -595,6 +598,9 @@ MyFrame::MyFrame(wxFrame *frame, const wxString &title, int x, int y, int w, int
     wxMenu *style_menu = new wxMenu;
     //style_menu->AppendCheckItem(ID_SINGLE, "Single selection"));
     style_menu->AppendCheckItem(ID_MULTIPLE, "Multiple selection");
+#if wxUSE_DRAG_AND_DROP
+    style_menu->AppendCheckItem(ID_SCROLL_ON_DRAG, "Scroll on drag automatically");
+#endif // wxUSE_DRAG_AND_DROP
     style_menu->AppendCheckItem(ID_ROW_LINES, "Alternating colours");
     style_menu->AppendCheckItem(ID_HORIZ_RULES, "Display horizontal rules");
     style_menu->AppendCheckItem(ID_VERT_RULES, "Display vertical rules");
@@ -1285,6 +1291,11 @@ void MyFrame::OnPageChanged( wxBookCtrlEvent& WXUNUSED(event) )
         case ID_MULTIPLE:
             style = wxDV_MULTIPLE;
             break;
+#if wxUSE_DRAG_AND_DROP
+        case ID_SCROLL_ON_DRAG:
+            style = ID_SCROLL_ON_DRAG;
+            break;
+#endif // wxUSE_DRAG_AND_DROP
         case ID_ROW_LINES:
             style = wxDV_ROW_LINES;
             break;
@@ -1357,6 +1368,10 @@ void MyFrame::OnStyleChange( wxCommandEvent& WXUNUSED(event) )
         style |= wxDV_SINGLE;*/
     if (GetMenuBar()->FindItem(ID_MULTIPLE)->IsChecked())
         style |= wxDV_MULTIPLE;
+#if wxUSE_DRAG_AND_DROP
+    if (GetMenuBar()->FindItem(ID_SCROLL_ON_DRAG)->IsChecked())
+        style |= wxDV_SCROLL_ON_DRAG;
+#endif // wxUSE_DRAG_AND_DROP
     if (GetMenuBar()->FindItem(ID_ROW_LINES)->IsChecked())
         style |= wxDV_ROW_LINES;
     if (GetMenuBar()->FindItem(ID_HORIZ_RULES)->IsChecked())
