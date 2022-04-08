@@ -846,13 +846,17 @@ protected:
 // Drop hints signal the position of the mouse over the item:
 // inside means the mouse is over the centre of the item, above and below
 // state that the mouse is close to the upper or lower border of the item.
-#define wxDV_DROP_HINT_NONE   0x0000     // drop impossible or not supported
-#define wxDV_DROP_HINT_INSIDE 0x0001     // drop inside the item
-#define wxDV_DROP_HINT_BELOW  0x0010     // drop below the item
-#define wxDV_DROP_HINT_ABOVE  0x0020     // drop after the item
+#define wxDND_DROP_HINT_NONE   0x0000   // drop impossible or not supported
+#define wxDND_DROP_HINT_INSIDE 0x0001   // drop inside the item
+#define wxDND_DROP_HINT_BELOW  0x0010   // drop below the item
+#define wxDND_DROP_HINT_ABOVE  0x0020   // drop after the item
 
-// Additional style to enable automatic scrolling during drag & drop
-#define wxDV_SCROLL_ON_DRAG 0x0100       // scroll on drag when over upper or lower border
+// Enable above or below hint overlayed with inside hint so that event handlers can enable
+// or disable dropping inside, above or below the item over which the mouse is hovering.
+#define wxDV_EXTENDED_DROP_HINT 0x0100
+// Additional style to enable automatic scrolling during drag & drop when dragging close to
+// the upper or lower border.
+#define wxDV_SCROLL_ON_DRAG     0x0200
 #endif
 
 class WXDLLIMPEXP_CORE wxDataViewEvent : public wxNotifyEvent
@@ -947,6 +951,8 @@ public:
     int GetDragFlags() const { return m_dragFlags; }
     void SetDropEffect( wxDragResult effect ) { m_dropEffect = effect; }
     wxDragResult GetDropEffect() const { return m_dropEffect; }
+    void SetActiveDropIndex(int rowIdx) { m_activeDropIndex = rowIdx; }
+    int GetActiveDropIndex() const { return m_activeDropIndex; }
     // For platforms (currently generic and OSX) that support Drag/Drop
     // insertion of items, this is the proposed child index for the insertion.
     void SetProposedDropIndex(int index) { m_proposedDropIndex = index; }
@@ -996,6 +1002,7 @@ protected:
 
     int                 m_dragFlags;
     wxDragResult        m_dropEffect;
+    int                 m_activeDropIndex;
     int                 m_proposedDropIndex;
     int                 m_dropHint;
 #endif // wxUSE_DRAG_AND_DROP
