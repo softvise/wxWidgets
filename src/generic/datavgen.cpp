@@ -5297,21 +5297,32 @@ void wxDataViewMainWindow::OnMouse( wxMouseEvent &event )
 
             wxDataViewItem itemDragged = GetItemByRow( drag_item_row );
 
-            // Notify cell about drag
-            wxDataViewEvent evt(wxEVT_DATAVIEW_ITEM_BEGIN_DRAG, m_owner, itemDragged);
-            if (!m_owner->HandleWindowEvent( evt ))
+            // Notify cell about the begin of the drag & drop operation
+            wxDataViewEvent beginDragEvent(wxEVT_DATAVIEW_ITEM_BEGIN_DRAG, m_owner, itemDragged);
+            if (!m_owner->HandleWindowEvent( beginDragEvent ))
                 return;
 
-            if (!evt.IsAllowed())
+            if (!beginDragEvent.IsAllowed())
                 return;
 
-            wxDataObject *obj = evt.GetDataObject();
+            wxDataObject *obj = beginDragEvent.GetDataObject();
             if (!obj)
                 return;
 
+            const int dragFlags = beginDragEvent.GetDragFlags();
+
+            // Execute the drag & drop operation
             wxDataViewDropSource drag( this, drag_item_row );
             drag.SetData( *obj );
-            /* wxDragResult res = */ drag.DoDragDrop(evt.GetDragFlags());
+            const wxDragResult dragResult = drag.DoDragDrop(dragFlags);
+
+            // Notify cell about the end of the drag & drop operation
+            wxDataViewEvent endDragEvent(wxEVT_DATAVIEW_ITEM_END_DRAG, m_owner, itemDragged);
+            endDragEvent.SetDragFlags(dragFlags);
+            endDragEvent.SetDataObject(obj);
+            endDragEvent.SetDropEffect(dragResult);
+            m_owner->HandleWindowEvent(endDragEvent);
+
             delete obj;
         }
         return;

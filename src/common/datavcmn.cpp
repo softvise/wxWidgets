@@ -1782,6 +1782,8 @@ wxDEFINE_EVENT( wxEVT_DATAVIEW_ITEM_DROP_POSSIBLE, wxDataViewEvent );
 wxDEFINE_EVENT( wxEVT_DATAVIEW_ITEM_DROP, wxDataViewEvent );
 // [sv] Add event wxEVT_DATAVIEW_ITEM_DRAG_LEAVE
 wxDEFINE_EVENT( wxEVT_DATAVIEW_ITEM_DRAG_LEAVE, wxDataViewEvent );
+// [sv] Add event wxEVT_DATAVIEW_ITEM_END_DRAG
+wxDEFINE_EVENT( wxEVT_DATAVIEW_ITEM_END_DRAG, wxDataViewEvent );
 
 // Common part of non-copy ctors.
 void wxDataViewEvent::Init(wxDataViewCtrlBase* dvc,
