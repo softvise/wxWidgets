@@ -3103,29 +3103,8 @@ void wxDataViewMainWindow::OnPaint( wxPaintEvent &WXUNUSED(event) )
 #if wxUSE_DRAG_AND_DROP
                 if (drawDropHint)
                 {
-                    const int borderDropHintHeight =
-                            makeBorderDropHintHeight(dropItemHeight, useExtendedDropHint);
-
-                    if (dropHint == wxDND_DROP_HINT_ABOVE)
-                    {
-                        // Make the drop hint a small rectangle at the top of the cell_rect.
-                        dropItemRect.height = borderDropHintHeight;
-
-                        // Render the drop hint in grey like a selected but not focussed item.
-                        renderer.DrawItemSelectionRect(this, dc, dropItemRect,
-                                                        wxCONTROL_SELECTED);
-                    }
-                    else if (dropHint == wxDND_DROP_HINT_BELOW)
-                    {
-                        // Make the drop hint a small rectangle at the bottom of the cell_rect.
-                        dropItemRect.y += dropItemRect.height - borderDropHintHeight;
-                        dropItemRect.height = borderDropHintHeight;
-
-                        // Render the drop hint in grey like a selected but not focussed item.
-                        renderer.DrawItemSelectionRect(this, dc, dropItemRect,
-                                                        wxCONTROL_SELECTED);
-                    }
-                    else
+                    // Draw the drop inside hint below the cell
+                    if ((dropHint & wxDND_DROP_HINT_INSIDE) != 0)
                     {
                         // Render the drop hint highlighted like a focussed item.
                         renderer.DrawItemSelectionRect(this, dc, dropItemRect,
@@ -3158,6 +3137,35 @@ void wxDataViewMainWindow::OnPaint( wxPaintEvent &WXUNUSED(event) )
 
                 if (hasValue)
                     cell->WXCallRender(item_rect, &dc, state);
+
+#if wxUSE_DRAG_AND_DROP
+                if (drawDropHint)
+                {
+                    // Draw the drop above or drop below hint above the cell
+                    const int borderDropHintHeight =
+                            makeBorderDropHintHeight(dropItemHeight, useExtendedDropHint);
+
+                    if (dropHint == wxDND_DROP_HINT_ABOVE)
+                    {
+                        // Make the drop hint a small rectangle at the top of the cell_rect.
+                        dropItemRect.height = borderDropHintHeight;
+
+                        // Render the drop hint in grey like a selected but not focussed item.
+                        renderer.DrawItemSelectionRect(this, dc, dropItemRect,
+                                                        wxCONTROL_SELECTED);
+                    }
+                    else if (dropHint == wxDND_DROP_HINT_BELOW)
+                    {
+                        // Make the drop hint a small rectangle at the bottom of the cell_rect.
+                        dropItemRect.y += dropItemRect.height - borderDropHintHeight;
+                        dropItemRect.height = borderDropHintHeight;
+
+                        // Render the drop hint in grey like a selected but not focussed item.
+                        renderer.DrawItemSelectionRect(this, dc, dropItemRect,
+                                                        wxCONTROL_SELECTED);
+                    }
+                }
+#endif // wxUSE_DRAG_AND_DROP
 
                 cell_rect.y += line_height;
             }
