@@ -2455,27 +2455,27 @@ wxDragResult wxDataViewMainWindow::OnDragOver( wxDataFormat format, wxCoord x,
 
     m_dropItemInfo = nextDropItemInfo;
 
-    if (!m_dropItemInfo.m_item.IsOk())
+    if (m_dropItemInfo.m_row < 0)
     {
         m_beginScrollTimer.Stop();
         m_doScrollTimer.Stop();
     }
     else if (GetParent()->HasFlag(wxDV_SCROLL_ON_DRAG))
     {
-        int linePositionX = 0;
-        int linePositionY = GetLineStart(m_dropItemInfo.m_row);
-        GetOwner()->CalcUnscrolledPosition(0, linePositionY, NULL, &linePositionY);
-        ClientToScreen(&linePositionX, &linePositionY);
+        int windowPositionX = 0;
+        int windowPositionY = 0;
+        ClientToScreen(&windowPositionX, &windowPositionY);
 
-        const int relativeMousePosY = wxGetMousePosition().y - linePositionY;
+        const int mousePositionY = wxGetMousePosition().y;
+        const int relativeMousePosY = mousePositionY - windowPositionY;
 
         const int oneLine = 1;
         const int onePage = wxMax(oneLine, GetCountPerPage());
         const int manyPages = wxMax(onePage, GetScrollRange(wxVERTICAL) / 50);
 
         static const double FAST_SCROLL_ZONE_PERCENTAGE = 0.05;
-        static const double MEDIUM_SCROLL_ZONE_PERCENTAGE = FAST_SCROLL_ZONE_PERCENTAGE + 0.10;
-        static const double SLOW_SCROLL_ZONE_PERCENTAGE =  MEDIUM_SCROLL_ZONE_PERCENTAGE + 0.15;
+        static const double MEDIUM_SCROLL_ZONE_PERCENTAGE = 0.10;
+        static const double SLOW_SCROLL_ZONE_PERCENTAGE =  0.15;
 
         const int lineHeight = GetLineHeight(m_dropItemInfo.m_row);
 
@@ -2485,10 +2485,12 @@ wxDragResult wxDataViewMainWindow::OnDragOver( wxDataFormat format, wxCoord x,
         // the upper or lower border during the drag & drop operation.
         // In case the fast and medium zones are zero, only slow scrolling will work.
         const int fastScrollZone = static_cast<int>(lineHeight * FAST_SCROLL_ZONE_PERCENTAGE);
-        const int mediumScrollZone = static_cast<int>(lineHeight * MEDIUM_SCROLL_ZONE_PERCENTAGE);
+        const int mediumScrollZone = fastScrollZone +
+                                     static_cast<int>(lineHeight * MEDIUM_SCROLL_ZONE_PERCENTAGE);
         // Set a slow scroll zone of at least 3 pixels height.
         // Otherwise, scrolling will not work or is too difficult to use.
-        const int slowScrollZone = wxMin(3, static_cast<int>(lineHeight * SLOW_SCROLL_ZONE_PERCENTAGE));
+        const int slowScrollZone = mediumScrollZone +
+                                   wxMin(3, static_cast<int>(lineHeight * SLOW_SCROLL_ZONE_PERCENTAGE));
 
         if (relativeMousePosY < fastScrollZone)
             m_scrollLines = -manyPages;
@@ -5325,6 +5327,11 @@ void wxDataViewMainWindow::OnMouse( wxMouseEvent &event )
 
             delete obj;
         }
+
+        m_scrollLines = 0;
+        m_beginScrollTimer.Stop();
+        m_doScrollTimer.Stop();
+
         return;
     }
     else
@@ -5707,7 +5714,7 @@ void wxDataViewMainWindow::OnTimer( wxTimerEvent &event )
     case ID_TIMER_DND_BEGIN_SCROLL:
         {
             if (m_scrollLines != 0)
-                ScrollLines(m_scrollLines);
+                GetOwner()->ScrollLines(m_scrollLines);
 
             const int delayInMilliseconds = 200;
             m_doScrollTimer.Start(delayInMilliseconds, wxTIMER_CONTINUOUS);
@@ -5717,7 +5724,7 @@ void wxDataViewMainWindow::OnTimer( wxTimerEvent &event )
     case ID_TIMER_DND_DO_SCROLL:
         {
             if (m_scrollLines != 0)
-                ScrollLines(m_scrollLines);
+                GetOwner()->ScrollLines(m_scrollLines);
         }
         break;
 
