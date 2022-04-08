@@ -674,7 +674,11 @@ MyFrame::MyFrame(wxFrame *frame, const wxString &title, int x, int y, int w, int
 
     wxPanel *firstPanel = new wxPanel( m_notebook, wxID_ANY );
 
+#if wxUSE_DRAG_AND_DROP
+    BuildDataViewCtrl(firstPanel, Page_Music, wxDV_EXTENDED_DROP_HINT | wxDV_SCROLL_ON_DRAG);
+#else
     BuildDataViewCtrl(firstPanel, Page_Music);
+#endif // wxUSE_DRAG_AND_DROP
 
     const wxSizerFlags border = wxSizerFlags().DoubleBorder();
 
@@ -707,7 +711,11 @@ MyFrame::MyFrame(wxFrame *frame, const wxString &title, int x, int y, int w, int
 
     wxPanel *secondPanel = new wxPanel( m_notebook, wxID_ANY );
 
+#if wxUSE_DRAG_AND_DROP
+    BuildDataViewCtrl(secondPanel, Page_List, wxDV_EXTENDED_DROP_HINT | wxDV_SCROLL_ON_DRAG);
+#else
     BuildDataViewCtrl(secondPanel, Page_List);
+#endif // wxUSE_DRAG_AND_DROP
 
     wxBoxSizer *button_sizer2 = new wxBoxSizer( wxHORIZONTAL );
     button_sizer2->Add( new wxButton( secondPanel, ID_PREPEND_LIST,"Prepend"),                0, wxALL, 10 );
@@ -1495,10 +1503,10 @@ void MyFrame::OnDropPossible( wxDataViewEvent &event )
         // Do not show a drop hint for the inner area of the item.
         // This means we only get drop hints above and below the item.
         // Nevertheless, dropping is still possible and the OnDrop handler
-        // could use the wxDV_DROP_HINT_BELOW or wxDV_DROP_HINT_ABOVE hints
+        // could use the wxDND_DROP_HINT_BELOW or wxDND_DROP_HINT_ABOVE hints
         // to actually move the dropped item before or after the drop target.
         int dropHint = event.GetDropHint();
-        event.SetDropHint(dropHint & ~wxDV_DROP_HINT_INSIDE);
+        event.SetDropHint(dropHint & ~wxDND_DROP_HINT_INSIDE);
     }
 
     event.SetDropEffect(wxDragMove); // check 'move' drop effect
@@ -1524,14 +1532,14 @@ void MyFrame::OnDrop( wxDataViewEvent &event )
 
     wxString dropHintText;
     int const dropHint = event.GetDropHint();
-    if (dropHint == wxDV_DROP_HINT_NONE)
-        dropHintText = "wxDV_DROP_HINT_NONE";
-    if ((dropHint & wxDV_DROP_HINT_INSIDE) != 0)
-        dropHintText += "wxDV_DROP_HINT_INSIDE ";
-    if ((dropHint & wxDV_DROP_HINT_BELOW) != 0)
-        dropHintText += "wxDV_DROP_HINT_BELOW ";
-    if ((dropHint & wxDV_DROP_HINT_ABOVE) != 0)
-        dropHintText += "wxDV_DROP_HINT_ABOVE ";
+    if (dropHint == wxDND_DROP_HINT_NONE)
+        dropHintText = "wxDND_DROP_HINT_NONE";
+    if ((dropHint & wxDND_DROP_HINT_INSIDE) != 0)
+        dropHintText += "wxDND_DROP_HINT_INSIDE ";
+    if ((dropHint & wxDND_DROP_HINT_BELOW) != 0)
+        dropHintText += "wxDND_DROP_HINT_BELOW ";
+    if ((dropHint & wxDND_DROP_HINT_ABOVE) != 0)
+        dropHintText += "wxDND_DROP_HINT_ABOVE ";
     dropHintText.Trim();
 
     wxDataViewModel* model = event.GetModel();
