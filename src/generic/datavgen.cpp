@@ -2054,28 +2054,20 @@ namespace
     int const ID_TIMER_DND_BEGIN_SCROLL = 1;
     int const ID_TIMER_DND_DO_SCROLL = 2;
 
-    int makeBorderDropHintHeight(int itemHeight, bool useExtendedDropHint)
+    int makeBorderDropHintHeight(int itemHeight)
     {
-        if (useExtendedDropHint)
-        {
-            // Make the drop hint rect one eighth of the item height.
-            // Together with the hint of the ajcacent item the hint is roughly
-            // a quarter of the item high.
-            // In case the item height is less than 8 we make the border
-            // only one pixel high.
-            // In case item height is less than 5 drop hint height is set to 0.
-            return itemHeight < 8 ? itemHeight / 5 : itemHeight / 8;
-        }
-
-        // Calculate the border drop hint height like in previous wxWidgets versions:
-
         // 15% is an arbitrarily chosen threshold here, which could be changed
         // or made configurable if really needed.
         static const double UPPER_ITEM_PART = 0.15;
 
+        int dropHintHeight = static_cast<int>(itemHeight * UPPER_ITEM_PART);
+        // If the value is odd make it even.
+        if (dropHintHeight % 2 != 0)
+            ++dropHintHeight;
+
         // Return only half the height because we draw the upper and lower part of the
         // "drop above" or "drop below" height with their respective items.
-        return static_cast<int>(0.5 * itemHeight * UPPER_ITEM_PART);
+        return dropHintHeight / 2;
     }
 
 } // anonymous namespace
@@ -2271,7 +2263,7 @@ wxDataViewMainWindow::DropItemInfo wxDataViewMainWindow::GetDropItemInfo(const w
     else
         dropItemInfo.m_dropHint = wxDND_DROP_HINT_BELOW;
 
-    const int borderDropHintHeight = makeBorderDropHintHeight(itemHeight, useExtendedDropHint);
+    const int borderDropHintHeight = makeBorderDropHintHeight(itemHeight);
     const int insideDropHintHeight = itemHeight - 2 * borderDropHintHeight;
 
     const bool insertInside = yDistanceFromLineStart > borderDropHintHeight &&
@@ -3142,8 +3134,7 @@ void wxDataViewMainWindow::OnPaint( wxPaintEvent &WXUNUSED(event) )
                 if (drawDropHint)
                 {
                     // Draw the drop above or drop below hint above the cell
-                    const int borderDropHintHeight =
-                            makeBorderDropHintHeight(dropItemHeight, useExtendedDropHint);
+                    const int borderDropHintHeight = makeBorderDropHintHeight(dropItemHeight);
 
                     if (dropHint == wxDND_DROP_HINT_ABOVE)
                     {
