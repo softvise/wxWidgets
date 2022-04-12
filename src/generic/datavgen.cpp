@@ -2507,12 +2507,16 @@ wxDragResult wxDataViewMainWindow::OnDragOver( wxDataFormat format, wxCoord x,
         const int slowScrollZone = mediumScrollZone +
                                    wxMin(3, static_cast<int>(lineHeight * SLOW_SCROLL_ZONE_PERCENTAGE));
 
-        if (relativeMousePosY < fastScrollZone)
-            m_scrollLines = -manyPages;
-        else if (relativeMousePosY < mediumScrollZone)
-            m_scrollLines = -onePage;
-        else if (relativeMousePosY < slowScrollZone)
-            m_scrollLines = -oneLine;
+        m_scrollLines = 0;
+        if (relativeMousePosY >= 0)
+        {
+            if (relativeMousePosY < fastScrollZone)
+                m_scrollLines = -manyPages;
+            else if (relativeMousePosY < mediumScrollZone)
+                m_scrollLines = -onePage;
+            else if (relativeMousePosY < slowScrollZone)
+                m_scrollLines = -oneLine;
+        }
 
         auto const height = GetClientSize().GetHeight();
         if (relativeMousePosY >= height - fastScrollZone)
