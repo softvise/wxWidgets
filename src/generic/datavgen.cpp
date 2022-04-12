@@ -2070,6 +2070,27 @@ namespace
         return dropHintHeight / 2;
     }
 
+    void renderBorderDropHint(wxRendererNative& renderer, wxDataViewMainWindow* window, wxDC& dc,
+                              const wxRect& rect, bool useExtendedDropHint)
+    {
+        if (useExtendedDropHint)
+        {
+            // Render the drop hint as a solid rectangle in the list box text color.
+            const wxColour colour = wxSystemSettings::GetColour(wxSYS_COLOUR_LISTBOXTEXT);
+
+            const wxDCBrushChanger brushGuard(dc, wxBrush(colour));
+            //const wxDCPenChanger penGuard(dc, wxPen(colour));
+            const wxDCPenChanger penGuard(dc, *wxTRANSPARENT_PEN);
+
+            dc.DrawRectangle(rect);
+        }
+        else
+        {
+            // Render the drop hint in grey like a selected but not focussed item.
+            renderer.DrawItemSelectionRect(window, dc, rect, wxCONTROL_SELECTED);
+        }
+    }
+
 } // anonymous namespace
 
 #endif // wxUSE_DRAG_AND_DROP
@@ -2249,6 +2270,8 @@ wxDataViewMainWindow::DropItemInfo wxDataViewMainWindow::GetDropItemInfo(const w
     //     wxDND_DROP_HINT_INSIDE | wxDND_DROP_HINT_ABOVE or
     //     wxDND_DROP_HINT_INSIDE | wxDND_DROP_HINT_BELOW if the mouse hovers in the centre of the
     //     item above or below the horizontal centre line.
+    //     Additionally, the proposed drop index is always determined not only when the mouse
+    //     is hovering near the border.
     //   If wxDV_EXTENDED_DROP_HINT is not set the hints are generated as in previous versions:
     //     wxDND_DROP_HINT_ABOVE or wxDND_DROP_HINT_BELOW if the mouse hovers near the item border,
     //     wxDND_DROP_HINT_INSIDE if the mouse hovers in the centre of the item above or below the
@@ -3141,9 +3164,7 @@ void wxDataViewMainWindow::OnPaint( wxPaintEvent &WXUNUSED(event) )
                         // Make the drop hint a small rectangle at the top of the cell_rect.
                         dropItemRect.height = borderDropHintHeight;
 
-                        // Render the drop hint in grey like a selected but not focussed item.
-                        renderer.DrawItemSelectionRect(this, dc, dropItemRect,
-                                                        wxCONTROL_SELECTED);
+                        renderBorderDropHint(renderer, this, dc, dropItemRect, useExtendedDropHint);
                     }
                     else if (dropHint == wxDND_DROP_HINT_BELOW)
                     {
@@ -3151,9 +3172,7 @@ void wxDataViewMainWindow::OnPaint( wxPaintEvent &WXUNUSED(event) )
                         dropItemRect.y += dropItemRect.height - borderDropHintHeight;
                         dropItemRect.height = borderDropHintHeight;
 
-                        // Render the drop hint in grey like a selected but not focussed item.
-                        renderer.DrawItemSelectionRect(this, dc, dropItemRect,
-                                                        wxCONTROL_SELECTED);
+                        renderBorderDropHint(renderer, this, dc, dropItemRect, useExtendedDropHint);
                     }
                 }
 #endif // wxUSE_DRAG_AND_DROP
