@@ -13,7 +13,6 @@
 
     - Make Begin/EndBatch() the same as the generic Freeze/Thaw()
     - Review the column reordering code, it's a mess.
-    - Implement row reordering after dealing with the columns.
  */
 
 // For compilers that support precompilation, includes "wx/wx.h".
@@ -254,6 +253,11 @@ int wxGridColumnOperations::GetFirstLine(const wxGrid *grid, wxGridWindow *gridW
 // wxGridCellRenderer and wxGridCellEditor managing ref counting
 // ----------------------------------------------------------------------------
 
+wxGridCellWorker::wxGridCellWorker(const wxGridCellWorker& other)
+{
+    CopyClientDataContainer(other);
+}
+
 void wxGridCellWorker::SetParameters(const wxString& WXUNUSED(params))
 {
     // nothing to do
@@ -446,6 +450,8 @@ wxGridCellAttr *wxGridCellAttr::Clone() const
         m_editor->IncRef();
     }
 
+    attr->CopyClientDataContainer(*this);
+
     if ( IsReadOnly() )
         attr->SetReadOnly();
 
@@ -485,6 +491,10 @@ void wxGridCellAttr::MergeWith(wxGridCellAttr *mergefrom)
     {
         m_editor =  mergefrom->m_editor;
         m_editor->IncRef();
+    }
+    if ( !HasClientDataContainer() && mergefrom->HasClientDataContainer() )
+    {
+        CopyClientDataContainer(*mergefrom);
     }
     if ( !HasReadWriteMode() && mergefrom->HasReadWriteMode() )
         SetReadOnly(mergefrom->IsReadOnly());
@@ -3034,8 +3044,11 @@ void wxGrid::Init()
     m_dragMoveCol = -1;
     m_dragLastPos  = -1;
     m_dragRowOrCol = -1;
+    m_dragRowOrColOldSize = -1;
     m_isDragging = false;
+    m_cancelledDragging = false;
     m_startDragPos = wxDefaultPosition;
+    m_lastMousePos = wxDefaultPosition;
 
     m_sortCol = wxNOT_FOUND;
     m_sortIsAscending = true;
@@ -3665,13 +3678,12 @@ bool wxGrid::Redimension( wxGridTableMessage& msg )
 
 wxArrayInt wxGrid::CalcRowLabelsExposed( const wxRegion& reg, wxGridWindow *gridWindow ) const
 {
-    wxRegionIterator iter( reg );
     wxRect r;
 
     wxArrayInt  rowlabels;
 
     int top, bottom;
-    while ( iter )
+    for ( wxRegionIterator iter( reg ); iter; ++iter )
     {
         r = iter.GetRect();
         r.Offset(GetGridWindowOffset(gridWindow));
@@ -3696,9 +3708,11 @@ wxArrayInt wxGrid::CalcRowLabelsExposed( const wxRegion& reg, wxGridWindow *grid
         CalcGridWindowUnscrolledPosition( 0, r.GetBottom(), &dummy, &bottom, gridWindow );
 
         // find the row labels within these bounds
-        //
-        int rowPos = GetRowPos( internalYToRow(top, gridWindow) );
-        for ( ; rowPos < m_numRows; rowPos++ )
+        const int rowFirst = internalYToRow(top, gridWindow);
+        if ( rowFirst == wxNOT_FOUND )
+            continue;
+
+        for ( int rowPos = GetRowPos(rowFirst); rowPos < m_numRows; rowPos++ )
         {
             int row;
             row = GetRowAt( rowPos );
@@ -3711,8 +3725,6 @@ wxArrayInt wxGrid::CalcRowLabelsExposed( const wxRegion& reg, wxGridWindow *grid
 
             rowlabels.Add( row );
         }
-
-        ++iter;
     }
 
     return rowlabels;
@@ -3720,13 +3732,12 @@ wxArrayInt wxGrid::CalcRowLabelsExposed( const wxRegion& reg, wxGridWindow *grid
 
 wxArrayInt wxGrid::CalcColLabelsExposed( const wxRegion& reg, wxGridWindow *gridWindow ) const
 {
-    wxRegionIterator iter( reg );
     wxRect r;
 
     wxArrayInt colLabels;
 
     int left, right;
-    while ( iter )
+    for ( wxRegionIterator iter( reg ); iter; ++iter )
     {
         r = iter.GetRect();
         r.Offset( GetGridWindowOffset(gridWindow) );
@@ -3752,8 +3763,11 @@ wxArrayInt wxGrid::CalcColLabelsExposed( const wxRegion& reg, wxGridWindow *grid
 
         // find the cells within these bounds
         //
-        int colPos = GetColPos( internalXToCol(left, gridWindow) );
-        for ( ; colPos < m_numCols; colPos++ )
+        const int colFirst = internalXToCol(left, gridWindow);
+        if ( colFirst == wxNOT_FOUND )
+           continue;
+
+        for ( int colPos = GetColPos(colFirst); colPos < m_numCols; colPos++ )
         {
             int col;
             col = GetColAt( colPos );
@@ -3766,8 +3780,6 @@ wxArrayInt wxGrid::CalcColLabelsExposed( const wxRegion& reg, wxGridWindow *grid
 
             colLabels.Add( col );
         }
-
-        ++iter;
     }
 
     return colLabels;
@@ -3815,9 +3827,12 @@ wxGridCellCoordsArray wxGrid::CalcCellsExposed( const wxRegion& reg,
 
         // find the cells within these bounds
         //
+        const int rowFirst = internalYToRow(top, gridWindow);
+        if ( rowFirst == wxNOT_FOUND )
+            continue;
+
         wxArrayInt cols;
-        int rowPos = GetRowPos( internalYToRow(top, gridWindow) );
-        for ( ; rowPos < m_numRows; rowPos++ )
+        for ( int rowPos = GetRowPos(rowFirst); rowPos < m_numRows; rowPos++ )
         {
             const int row = GetRowAt( rowPos );
 
@@ -3864,12 +3879,99 @@ void wxGrid::PrepareDCFor(wxDC &dc, wxGridWindow *gridWindow)
     dc.SetDeviceOrigin(dcOrigin.x, dcOrigin.y);
 }
 
+void wxGrid::CheckDoDragScroll(wxGridSubwindow *eventGridWindow, wxGridSubwindow *gridWindow,
+                               wxPoint posEvent, int direction)
+{
+    // helper for Process{Row|Col}LabelMouseEvent, ProcessGridCellMouseEvent:
+    //  scroll when at the edges or outside the window w. respect to direction
+    // eventGridWindow: the window that received the mouse event
+    // gridWindow: the same or the corresponding non-frozen window
+
+    if ( !m_isDragging )
+    {
+        // drag is just starting
+        m_lastMousePos = posEvent;
+        return;
+    }
+
+    int w, h;
+    eventGridWindow->GetSize(&w, &h);
+    // ViewStart is scroll position in scroll units
+    wxPoint scrollPos = GetViewStart();
+    wxPoint newScrollPos = wxPoint(wxDefaultCoord, wxDefaultCoord);
+
+    if ( direction & wxHORIZONTAL )
+    {
+        // check x direction
+        if ( eventGridWindow->IsFrozen() && posEvent.x < w )
+        {
+            // in the frozen window, moving left?
+            if ( scrollPos.x > 0 && posEvent.x < m_lastMousePos.x )
+                newScrollPos.x = scrollPos.x - 1;
+        }
+        else if ( eventGridWindow->IsFrozen() && posEvent.x >= w )
+        {
+            // frozen window was left, add the width of the non-frozen window
+            w += gridWindow->GetSize().x;
+        }
+
+        if ( posEvent.x < 0 && scrollPos.x > 0 )
+            newScrollPos.x = scrollPos.x - 1;
+        else if ( posEvent.x >= w )
+            newScrollPos.x = scrollPos.x + 1;
+    }
+
+    if ( direction & wxVERTICAL )
+    {
+        // check y direction
+        if ( eventGridWindow->IsFrozen() && posEvent.y < h )
+        {
+            // in the frozen window, moving upward?
+            if ( scrollPos.y && posEvent.y < m_lastMousePos.y )
+                newScrollPos.y = scrollPos.y - 1;
+        }
+        else if ( eventGridWindow->IsFrozen() && posEvent.y >= h )
+        {
+            // frozen window was left, add the height of the non-frozen window
+            h += gridWindow->GetSize().y;
+        }
+
+        if ( posEvent.y < 0 && scrollPos.y > 0 )
+            newScrollPos.y = scrollPos.y - 1;
+        else if ( posEvent.y >= h )
+            newScrollPos.y = scrollPos.y + 1;
+    }
+
+    if ( newScrollPos.x != wxDefaultCoord || newScrollPos.y != wxDefaultCoord )
+        Scroll(newScrollPos);
+
+    m_lastMousePos = posEvent;
+}
+
+bool wxGrid::CheckIfDragCancelled(wxMouseEvent *event)
+{
+    // helper for Process{Row|Col}LabelMouseEvent, ProcessGridCellMouseEvent:
+    // block re-triggering m_isDragging
+    if ( !m_cancelledDragging )
+        return false;
+
+    if ( event->LeftIsDown() )
+        return true;
+
+    m_cancelledDragging = false;
+
+    return false;
+}
+
 void wxGrid::ProcessRowLabelMouseEvent( wxMouseEvent& event, wxGridRowLabelWindow* rowLabelWin )
 {
     int y;
     wxGridWindow *gridWindow = rowLabelWin->IsFrozen() ? m_frozenRowGridWin : m_gridWin;
 
-    event.SetPosition(event.GetPosition() + GetGridWindowOffset(gridWindow));
+    // store position, before it's modified in the next step
+    const wxPoint posEvent = event.GetPosition();
+
+    event.SetPosition(posEvent + GetGridWindowOffset(gridWindow));
 
     // for drag, we could be moving from the window sending the event to the other
     if ( rowLabelWin->IsFrozen() && event.GetPosition().y > rowLabelWin->GetClientSize().y )
@@ -3877,6 +3979,15 @@ void wxGrid::ProcessRowLabelMouseEvent( wxMouseEvent& event, wxGridRowLabelWindo
 
     CalcGridWindowUnscrolledPosition(0, event.GetPosition().y,  NULL, &y, gridWindow);
     int row = YToRow( y );
+
+    if ( CheckIfDragCancelled(&event) )
+        return;
+
+    if ( event.Dragging() && (m_winCapture == rowLabelWin) )
+    {
+        // scroll when at the edges or outside the window
+        CheckDoDragScroll(rowLabelWin, m_rowLabelWin, posEvent, wxVERTICAL);
+    }
 
     if ( event.Dragging() )
     {
@@ -3995,7 +4106,7 @@ void wxGrid::ProcessRowLabelMouseEvent( wxMouseEvent& event, wxGridRowLabelWindo
         row = YToEdgeOfRow(y);
         if ( row != wxNOT_FOUND && CanDragRowSize(row) )
         {
-            DoStartResizeRowOrCol(row);
+            DoStartResizeRowOrCol(row, GetRowSize(row));
             ChangeCursorMode(WXGRID_CURSOR_RESIZE_ROW, rowLabelWin);
         }
         else // not a request to start resizing
@@ -4157,6 +4268,7 @@ void wxGrid::ProcessRowLabelMouseEvent( wxMouseEvent& event, wxGridRowLabelWindo
 
         ChangeCursorMode(WXGRID_CURSOR_SELECT_CELL, rowLabelWin);
         m_dragLastPos = -1;
+        m_lastMousePos = wxDefaultPosition;
         m_isDragging = false;
     }
 
@@ -4311,13 +4423,14 @@ void wxGrid::DoColHeaderClick(int col)
     }
 }
 
-void wxGrid::DoStartResizeRowOrCol(int col)
+void wxGrid::DoStartResizeRowOrCol(int col, int size)
 {
     // Hide the editor if it's currently shown to avoid any weird interactions
     // with it while dragging the row/column separator.
     AcceptCellEditControlIfShown();
 
     m_dragRowOrCol = col;
+    m_dragRowOrColOldSize = size;
 }
 
 void wxGrid::ProcessColLabelMouseEvent( wxMouseEvent& event, wxGridColLabelWindow* colLabelWin )
@@ -4325,7 +4438,10 @@ void wxGrid::ProcessColLabelMouseEvent( wxMouseEvent& event, wxGridColLabelWindo
     int x;
     wxGridWindow *gridWindow = colLabelWin->IsFrozen() ? m_frozenColGridWin : m_gridWin;
 
-    event.SetPosition(event.GetPosition() + GetGridWindowOffset(gridWindow));
+    // store position, before it's modified in the next step
+    const wxPoint posEvent = event.GetPosition();
+
+    event.SetPosition(posEvent + GetGridWindowOffset(gridWindow));
 
     // for drag, we could be moving from the window sending the event to the other
     if (colLabelWin->IsFrozen() && event.GetPosition().x > colLabelWin->GetClientSize().x)
@@ -4334,6 +4450,16 @@ void wxGrid::ProcessColLabelMouseEvent( wxMouseEvent& event, wxGridColLabelWindo
     CalcGridWindowUnscrolledPosition(event.GetPosition().x, 0, &x, NULL, gridWindow);
 
     int col = XToCol(x);
+
+    if ( CheckIfDragCancelled(&event) )
+        return;
+
+    if ( event.Dragging() && (m_winCapture == colLabelWin) )
+    {
+        // scroll when at the edges or outside the window
+        CheckDoDragScroll(colLabelWin, GetColLabelWindow(), posEvent, wxHORIZONTAL);
+    }
+
     if ( event.Dragging() )
     {
         if (!m_isDragging)
@@ -4452,7 +4578,7 @@ void wxGrid::ProcessColLabelMouseEvent( wxMouseEvent& event, wxGridColLabelWindo
         int colEdge = XToEdgeOfCol(x);
         if ( colEdge != wxNOT_FOUND && CanDragColSize(colEdge) )
         {
-            DoStartResizeRowOrCol(colEdge);
+            DoStartResizeRowOrCol(colEdge, GetColSize(colEdge));
             ChangeCursorMode(WXGRID_CURSOR_RESIZE_COL, colLabelWin);
         }
         else // not a request to start resizing
@@ -4611,6 +4737,7 @@ void wxGrid::ProcessColLabelMouseEvent( wxMouseEvent& event, wxGridColLabelWindo
 
         ChangeCursorMode(WXGRID_CURSOR_SELECT_CELL, GetColLabelWindow());
         m_dragLastPos = -1;
+        m_lastMousePos = wxDefaultPosition;
         m_isDragging = false;
     }
 
@@ -4736,6 +4863,7 @@ void wxGrid::DoAfterDraggingEnd()
 
     m_isDragging = false;
     m_startDragPos = wxDefaultPosition;
+    m_lastMousePos = wxDefaultPosition;
 
     m_cursorMode = WXGRID_CURSOR_SELECT_CELL;
     m_winCapture->SetCursor( *wxSTANDARD_CURSOR );
@@ -4803,9 +4931,6 @@ void wxGrid::ChangeCursorMode(CursorMode mode,
 
         case WXGRID_CURSOR_MOVE_ROW:
         case WXGRID_CURSOR_MOVE_COL:
-            // Currently we don't capture mouse when moving columns, which is
-            // almost certainly wrong.
-            captureMouse = false;
             win->SetCursor( wxCursor(wxCURSOR_HAND) );
             break;
 
@@ -4931,12 +5056,16 @@ wxGrid::DoGridCellLeftDown(wxMouseEvent& event,
             {
                 int dragRowOrCol = wxNOT_FOUND;
                 if ( m_cursorMode == WXGRID_CURSOR_RESIZE_COL )
+                {
                     dragRowOrCol = XToEdgeOfCol(pos.x);
+                    DoStartResizeRowOrCol(dragRowOrCol, GetColSize(dragRowOrCol));
+                }
                 else
+                {
                     dragRowOrCol = YToEdgeOfRow(pos.y);
+                    DoStartResizeRowOrCol(dragRowOrCol, GetRowSize(dragRowOrCol));
+                }
                 wxCHECK_RET( dragRowOrCol != -1, "Can't determine row or column in resizing mode" );
-
-                DoStartResizeRowOrCol(dragRowOrCol);
             }
             break;
 
@@ -5115,13 +5244,20 @@ void wxGrid::ProcessGridCellMouseEvent(wxMouseEvent& event, wxGridWindow *eventG
     // the window receiving the event might not be the same as the one under
     // the mouse (e.g. in the case of a dragging event started in one window,
     // but continuing over another one)
+
+    if ( CheckIfDragCancelled(&event) )
+        return;
+
     wxGridWindow *gridWindow =
         DevicePosToGridWindow(event.GetPosition() + eventGridWindow->GetPosition());
 
     if ( !gridWindow )
         gridWindow = eventGridWindow;
 
-    event.SetPosition(event.GetPosition() + eventGridWindow->GetPosition() -
+    // store position, before it's modified in the next step
+    const wxPoint posEvent = event.GetPosition();
+
+    event.SetPosition(posEvent + eventGridWindow->GetPosition() -
                       wxPoint(m_rowLabelWidth, m_colLabelHeight));
 
     wxPoint pos = CalcGridWindowUnscrolledPosition(event.GetPosition(), gridWindow);
@@ -5151,6 +5287,13 @@ void wxGrid::ProcessGridCellMouseEvent(wxMouseEvent& event, wxGridWindow *eventG
     }
 
     const bool isDraggingWithLeft = event.Dragging() && event.LeftIsDown();
+
+    if ( isDraggingWithLeft && (m_winCapture == eventGridWindow) )
+    {
+        // scroll when at the edges or outside the window
+        CheckDoDragScroll(eventGridWindow, m_gridWin, posEvent,
+                          wxHORIZONTAL | wxVERTICAL);
+    }
 
     // While dragging the mouse, only releasing the left mouse button, which
     // cancels the drag operation, is processed (above) and any other events
@@ -5295,7 +5438,7 @@ void wxGrid::DoEndDragResizeCol(const wxMouseEvent& event, wxGridWindow* gridWin
 
 void wxGrid::DoHeaderStartDragResizeCol(int col)
 {
-    DoStartResizeRowOrCol(col);
+    DoStartResizeRowOrCol(col, GetColSize(col));
 }
 
 void wxGrid::DoHeaderDragResizeCol(int width)
@@ -5398,6 +5541,19 @@ void wxGrid::SetRowPos(int idx, int pos)
     RefreshAfterRowPosChange();
 }
 
+int wxGrid::GetRowPos(int idx) const
+{
+    wxASSERT_MSG( idx >= 0 && idx < m_numRows, "invalid row index" );
+
+    if ( m_rowAt.IsEmpty() )
+        return idx;
+
+    int pos = m_rowAt.Index(idx);
+    wxASSERT_MSG( pos != wxNOT_FOUND, "invalid row index" );
+
+    return pos;
+}
+
 void wxGrid::ResetRowPos()
 {
     m_rowAt.clear();
@@ -5488,6 +5644,19 @@ void wxGrid::SetColPos(int idx, int pos)
     wxHeaderCtrl::MoveColumnInOrderArray(m_colAt, idx, pos);
 
     RefreshAfterColPosChange();
+}
+
+int wxGrid::GetColPos(int idx) const
+{
+    wxASSERT_MSG( idx >= 0 && idx < m_numCols, "invalid column index" );
+
+    if ( m_colAt.IsEmpty() )
+        return idx;
+
+    int pos = m_colAt.Index(idx);
+    wxASSERT_MSG( pos != wxNOT_FOUND, "invalid column index" );
+
+    return pos;
 }
 
 void wxGrid::ResetColPos()
@@ -6185,7 +6354,44 @@ void wxGrid::OnKeyDown( wxKeyEvent& event )
                 break;
 
             case WXK_ESCAPE:
-                ClearSelection();
+                if ( m_isDragging && m_winCapture )
+                {
+                    switch ( m_cursorMode )
+                    {
+                        case WXGRID_CURSOR_MOVE_COL:
+                        case WXGRID_CURSOR_MOVE_ROW:
+                            // end row/column moving
+                            m_winCapture->Refresh();
+                            m_dragLastPos = -1;
+                            break;
+
+                        case WXGRID_CURSOR_RESIZE_ROW:
+                        case WXGRID_CURSOR_RESIZE_COL:
+                            // reset to size from before dragging
+                            (m_cursorMode == WXGRID_CURSOR_RESIZE_ROW
+                                ? static_cast<const wxGridOperations&>(wxGridRowOperations())
+                                : static_cast<const wxGridOperations&>(wxGridColumnOperations())
+                            ).SetLineSize(this, m_dragRowOrCol, m_dragRowOrColOldSize);
+
+                            m_dragRowOrCol = -1;
+                            break;
+
+                        case WXGRID_CURSOR_SELECT_CELL:
+                        case WXGRID_CURSOR_SELECT_ROW:
+                        case WXGRID_CURSOR_SELECT_COL:
+                            if ( m_selection )
+                                m_selection->CancelSelecting();
+                            break;
+                    }
+                    EndDraggingIfNecessary();
+
+                    // ensure that a new drag operation is only started after a LeftUp
+                    m_cancelledDragging = true;
+                }
+                else
+                {
+                    ClearSelection();
+                }
                 break;
 
             case WXK_TAB:

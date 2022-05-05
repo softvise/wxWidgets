@@ -250,7 +250,7 @@ public:
 
         @since 3.1.5
     */
-    virtual wxVersionInfo GetVersionInfo(const wxString& backend);
+    virtual wxVersionInfo GetVersionInfo();
 };
 
 /**
@@ -1379,3 +1379,6 @@ wxEventType wxEVT_WEBVIEW_LOADED;
 wxEventType wxEVT_WEBVIEW_ERROR;
 wxEventType wxEVT_WEBVIEW_NEWWINDOW;
 wxEventType wxEVT_WEBVIEW_TITLE_CHANGED;
+wxEventType wxEVT_WEBVIEW_FULLSCREEN_CHANGED;
+wxEventType wxEVT_WEBVIEW_SCRIPT_MESSAGE_RECEIVED;
+wxEventType wxEVT_WEBVIEW_SCRIPT_RESULT;
