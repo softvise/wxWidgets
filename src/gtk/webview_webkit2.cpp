@@ -11,6 +11,13 @@
 
 #if wxUSE_WEBVIEW && wxUSE_WEBVIEW_WEBKIT2
 
+// In Ubuntu 18.04 compiling glib.h with gcc 4.8 results in the warnings inside
+// it, and disabling them temporarily using wxGCC_WARNING_SUPPRESS/RESTORE
+// doesn't work (i.e. they're still given), so disable them globally here.
+#if wxCHECK_GCC_VERSION(4, 8) && !wxCHECK_GCC_VERSION(4, 9)
+    #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
 #include "wx/dir.h"
 #include "wx/dynlib.h"
 #include "wx/filename.h"
@@ -34,8 +41,12 @@
 // Helper function to get string from Webkit JS result
 bool wxGetStringFromJSResult(WebKitJavascriptResult* js_result, wxString* output)
 {
+    wxGCC_WARNING_SUPPRESS(deprecated-declarations)
+
     JSGlobalContextRef context = webkit_javascript_result_get_global_context(js_result);
     JSValueRef value = webkit_javascript_result_get_value(js_result);
+
+    wxGCC_WARNING_RESTORE(deprecated-declarations)
 
     JSValueRef exception = NULL;
     wxJSStringRef js_value
