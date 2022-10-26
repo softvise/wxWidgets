@@ -63,8 +63,8 @@ typedef HRESULT(__stdcall *GetAvailableCoreWebView2BrowserVersionString_t)(
     PCWSTR browserExecutableFolder,
     LPWSTR* versionInfo);
 
-CreateCoreWebView2EnvironmentWithOptions_t wxCreateCoreWebView2EnvironmentWithOptions = NULL;
-GetAvailableCoreWebView2BrowserVersionString_t wxGetAvailableCoreWebView2BrowserVersionString = NULL;
+CreateCoreWebView2EnvironmentWithOptions_t wxCreateCoreWebView2EnvironmentWithOptions = nullptr;
+GetAvailableCoreWebView2BrowserVersionString_t wxGetAvailableCoreWebView2BrowserVersionString = nullptr;
 wxDynamicLibrary wxWebViewEdgeImpl::ms_loaderDll;
 #endif // wxUSE_WEBVIEW_EDGE_STATIC
 
@@ -73,8 +73,8 @@ class wxWebViewEdgeHandlerRequest : public wxWebViewHandlerRequest
 public:
     wxWebViewEdgeHandlerRequest(ICoreWebView2WebResourceRequest* request):
         m_request(request),
-        m_handler(NULL),
-        m_dataStream(NULL)
+        m_handler(nullptr),
+        m_dataStream(nullptr)
     { }
 
     ~wxWebViewEdgeHandlerRequest()
@@ -84,7 +84,7 @@ public:
 
     void SetHandler(wxWebViewHandler* handler) { m_handler = handler; }
 
-    virtual wxString GetRawURI() const wxOVERRIDE
+    virtual wxString GetRawURI() const override
     {
         wxCoTaskMemPtr<wchar_t> uri;
         if (SUCCEEDED(m_request->get_Uri(&uri)))
@@ -93,7 +93,7 @@ public:
             return wxString();
     }
 
-    virtual wxString GetURI() const wxOVERRIDE
+    virtual wxString GetURI() const override
     {
         wxURI rawURI(GetRawURI());
         wxString path = rawURI.GetPath();
@@ -103,7 +103,7 @@ public:
         return uri;
     }
 
-    virtual wxInputStream* GetData() const wxOVERRIDE
+    virtual wxInputStream* GetData() const override
     {
         if (!m_dataStream)
         {
@@ -115,13 +115,13 @@ public:
                 pos.QuadPart = 0;
                 HRESULT hr = dataStream->Seek(pos, STREAM_SEEK_END, &size);
                 if (FAILED(hr))
-                    return NULL;
-                hr = dataStream->Seek(pos, STREAM_SEEK_SET, NULL);
+                    return nullptr;
+                hr = dataStream->Seek(pos, STREAM_SEEK_SET, nullptr);
                 if (FAILED(hr))
-                    return NULL;
-                hr = dataStream->Read(m_data.GetWriteBuf(size.QuadPart), size.QuadPart, NULL);
+                    return nullptr;
+                hr = dataStream->Read(m_data.GetWriteBuf(size.QuadPart), size.QuadPart, nullptr);
                 if (FAILED(hr))
-                    return NULL;
+                    return nullptr;
                 m_dataStream = new wxMemoryInputStream(m_data.GetData(), size.QuadPart);
             }
         }
@@ -129,7 +129,7 @@ public:
         return m_dataStream;
     }
 
-    virtual wxString GetMethod() const wxOVERRIDE
+    virtual wxString GetMethod() const override
     {
         wxCoTaskMemPtr<wchar_t> method;
         if (SUCCEEDED(m_request->get_Method(&method)))
@@ -138,7 +138,7 @@ public:
             return wxString();
     }
 
-    virtual wxString GetHeader(const wxString& name) const wxOVERRIDE
+    virtual wxString GetHeader(const wxString& name) const override
     {
         wxCOMPtr<ICoreWebView2HttpRequestHeaders> headers;
         if (SUCCEEDED(m_request->get_Headers(&headers)))
@@ -178,7 +178,7 @@ public:
         m_args->GetDeferral(&m_deferral);
 
         // Create response
-        HRESULT hr = m_env->CreateWebResourceResponse(NULL, 200, NULL, NULL, &m_response);
+        HRESULT hr = m_env->CreateWebResourceResponse(nullptr, 200, nullptr, nullptr, &m_response);
         if (FAILED(hr))
             wxLogApiError("CreateWebResourceResponse", hr);
     }
@@ -186,13 +186,13 @@ public:
     void SetReason(const wxString& reason)
     { m_response->put_ReasonPhrase(reason.wc_str()); }
 
-    virtual void SetStatus(int status) wxOVERRIDE
+    virtual void SetStatus(int status) override
     { m_response->put_StatusCode(status); }
 
-    virtual void SetContentType(const wxString& contentType) wxOVERRIDE
+    virtual void SetContentType(const wxString& contentType) override
     { SetHeader("Content-Type", contentType); }
 
-    virtual void SetHeader(const wxString& name, const wxString& value) wxOVERRIDE
+    virtual void SetHeader(const wxString& name, const wxString& value) override
     {
         wxCOMPtr<ICoreWebView2HttpResponseHeaders> headers;
         if (SUCCEEDED(m_response->get_Headers(&headers)))
@@ -219,7 +219,7 @@ public:
         return true;
     }
 
-    virtual void Finish(wxSharedPtr<wxWebViewHandlerResponseData> data) wxOVERRIDE
+    virtual void Finish(wxSharedPtr<wxWebViewHandlerResponseData> data) override
     {
         SetReason("OK");
         // put content
@@ -233,7 +233,7 @@ public:
         SendResponse();
     }
 
-    virtual void FinishWithError() wxOVERRIDE
+    virtual void FinishWithError() override
     {
         SetStatus(500);
         SetReason("Error");
@@ -397,8 +397,8 @@ HRESULT wxWebViewEdgeImpl::OnSourceChanged(ICoreWebView2 * WXUNUSED(sender), ICo
         wxWebViewEvent event(wxEVT_WEBVIEW_NAVIGATING, m_ctrl->GetId(), m_ctrl->GetCurrentURL(), wxString());
         event.SetEventObject(m_ctrl);
         m_ctrl->GetEventHandler()->AddPendingEvent(event);
-        OnNavigationCompleted(NULL, NULL);
-        OnDOMContentLoaded(NULL, NULL);
+        OnNavigationCompleted(nullptr, nullptr);
+        OnDOMContentLoaded(nullptr, nullptr);
     }
     return S_OK;
 }
@@ -711,21 +711,21 @@ void wxWebViewEdgeImpl::UpdateWebMessageHandler()
         wxString js = wxString::Format("window.%s = window.chrome.webview;",
             m_scriptMsgHandlerName);
         m_ctrl->AddUserScript(js);
-        m_webView->ExecuteScript(js.wc_str(), NULL);
+        m_webView->ExecuteScript(js.wc_str(), nullptr);
     }
 }
 
 ICoreWebView2Settings* wxWebViewEdgeImpl::GetSettings()
 {
     if (!m_webView)
-        return NULL;
+        return nullptr;
 
     ICoreWebView2Settings* settings;
     HRESULT hr = m_webView->get_Settings(&settings);
     if (FAILED(hr))
     {
         wxLogApiError("WebView2::get_Settings", hr);
-        return NULL;
+        return nullptr;
     }
 
     return settings;
@@ -1266,12 +1266,12 @@ public:
     {
     }
 
-    virtual bool OnInit() wxOVERRIDE
+    virtual bool OnInit() override
     {
         return true;
     }
 
-    virtual void OnExit() wxOVERRIDE
+    virtual void OnExit() override
     {
         wxWebViewEdgeImpl::Uninitialize();
     }

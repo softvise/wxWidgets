@@ -54,7 +54,7 @@
 class MyApp: public wxApp
 {
 public:
-    virtual bool OnInit() wxOVERRIDE;
+    virtual bool OnInit() override;
 };
 
 // ----------------------------------------------------------------------------
@@ -244,7 +244,7 @@ public:
         : wxDataViewCustomRenderer("string", mode, wxALIGN_CENTER)
        { }
 
-    virtual bool Render( wxRect rect, wxDC *dc, int state ) wxOVERRIDE
+    virtual bool Render( wxRect rect, wxDC *dc, int state ) override
     {
         dc->SetBrush( *wxLIGHT_GREY_BRUSH );
         dc->SetPen( *wxTRANSPARENT_PEN );
@@ -264,7 +264,7 @@ public:
                               wxDataViewModel *WXUNUSED(model),
                               const wxDataViewItem &WXUNUSED(item),
                               unsigned int WXUNUSED(col),
-                              const wxMouseEvent *mouseEvent) wxOVERRIDE
+                              const wxMouseEvent *mouseEvent) override
     {
         wxString position;
         if ( mouseEvent )
@@ -275,32 +275,32 @@ public:
         return false;
     }
 
-    virtual wxSize GetSize() const wxOVERRIDE
+    virtual wxSize GetSize() const override
     {
         return GetView()->FromDIP(wxSize(60, 20));
     }
 
-    virtual bool SetValue( const wxVariant &value ) wxOVERRIDE
+    virtual bool SetValue( const wxVariant &value ) override
     {
         m_value = value.GetString();
         return true;
     }
 
-    virtual bool GetValue( wxVariant &WXUNUSED(value) ) const wxOVERRIDE { return true; }
+    virtual bool GetValue( wxVariant &WXUNUSED(value) ) const override { return true; }
 
 #if wxUSE_ACCESSIBILITY
-    virtual wxString GetAccessibleDescription() const wxOVERRIDE
+    virtual wxString GetAccessibleDescription() const override
     {
         return m_value;
     }
 #endif // wxUSE_ACCESSIBILITY
 
-    virtual bool HasEditorCtrl() const wxOVERRIDE { return true; }
+    virtual bool HasEditorCtrl() const override { return true; }
 
     virtual wxWindow*
     CreateEditorCtrl(wxWindow* parent,
                      wxRect labelRect,
-                     const wxVariant& value) wxOVERRIDE
+                     const wxVariant& value) override
     {
         wxTextCtrl* text = new wxTextCtrl(parent, wxID_ANY, value,
                                           labelRect.GetPosition(),
@@ -312,7 +312,7 @@ public:
     }
 
     virtual bool
-    GetValueFromEditorCtrl(wxWindow* ctrl, wxVariant& value) wxOVERRIDE
+    GetValueFromEditorCtrl(wxWindow* ctrl, wxVariant& value) override
     {
         wxTextCtrl* text = wxDynamicCast(ctrl, wxTextCtrl);
         if ( !text )
@@ -340,13 +340,13 @@ public:
         : wxDataViewCustomRenderer("string", wxDATAVIEW_CELL_INERT, 0)
     { }
 
-    virtual bool Render(wxRect rect, wxDC *dc, int state) wxOVERRIDE
+    virtual bool Render(wxRect rect, wxDC *dc, int state) override
     {
         RenderText(m_value, 0, rect, dc, state);
         return true;
     }
 
-    virtual wxSize GetSize() const wxOVERRIDE
+    virtual wxSize GetSize() const override
     {
         wxSize txtSize = GetTextExtent(m_value);
         int lines = m_value.Freq('\n') + 1;
@@ -354,17 +354,17 @@ public:
         return txtSize;
     }
 
-    virtual bool SetValue(const wxVariant &value) wxOVERRIDE
+    virtual bool SetValue(const wxVariant &value) override
     {
         m_value = value.GetString();
         m_value.Replace(" ", "\n");
         return true;
     }
 
-    virtual bool GetValue(wxVariant &WXUNUSED(value)) const wxOVERRIDE { return true; }
+    virtual bool GetValue(wxVariant &WXUNUSED(value)) const override { return true; }
 
 #if wxUSE_ACCESSIBILITY
-    virtual wxString GetAccessibleDescription() const wxOVERRIDE
+    virtual wxString GetAccessibleDescription() const override
     {
         return m_value;
     }
@@ -391,7 +391,7 @@ bool MyApp::OnInit()
         return false;
 
     MyFrame *frame =
-        new MyFrame(NULL, "wxDataViewCtrl sample", 40, 40, 1000, 540);
+        new MyFrame(nullptr, "wxDataViewCtrl sample", 40, 40, 1000, 540);
 
     frame->Show(true);
     return true;
@@ -580,11 +580,11 @@ wxEND_EVENT_TABLE()
 MyFrame::MyFrame(wxFrame *frame, const wxString &title, int x, int y, int w, int h):
   wxFrame(frame, wxID_ANY, title, wxPoint(x, y), wxSize(w, h))
 {
-    m_log = NULL;
-    m_col = NULL;
+    m_log = nullptr;
+    m_col = nullptr;
 
     for ( int page = 0; page < Page_Max; ++page )
-        m_ctrl[page] = NULL;
+        m_ctrl[page] = nullptr;
 
     m_eventFromProgram = false;
 
@@ -1195,7 +1195,7 @@ void MyFrame::OnHitTest(wxCommandEvent& WXUNUSED(event))
     wxDataViewCtrl* const dvc = m_ctrl[m_notebook->GetSelection()];
 
     wxDataViewItem item;
-    wxDataViewColumn* column = NULL;
+    wxDataViewColumn* column = nullptr;
     dvc->HitTest(dvc->ScreenToClient(wxGetMousePosition()), item, column);
 
     if ( item.IsOk() )
@@ -1418,14 +1418,14 @@ void MyFrame::OnStyleChange( wxCommandEvent& WXUNUSED(event) )
 
     sz->Detach(m_ctrl[nPanel]);
     wxDELETE(m_ctrl[nPanel]);
-    m_ctrl[nPanel] = NULL;
+    m_ctrl[nPanel] = nullptr;
 
     if (nPanel == 0)
-        m_music_model.reset(NULL);
+        m_music_model.reset(nullptr);
     else if (nPanel == 1)
-        m_list_model.reset(NULL);
+        m_list_model.reset(nullptr);
     else if (nPanel == 4)
-        m_long_music_model.reset(NULL);
+        m_long_music_model.reset(nullptr);
 
     int flags = 0;
     if ( GetMenuBar()->FindItem(ID_ALIGN_CENTRE_H)->IsChecked() )
@@ -2053,7 +2053,7 @@ void MyFrame::FillIndexList(Lang lang)
 
 void MyFrame::OnIndexListResetModel(wxCommandEvent&)
 {
-    m_ctrl[Page_IndexList]->AssociateModel(NULL);
+    m_ctrl[Page_IndexList]->AssociateModel(nullptr);
     m_ctrl[Page_IndexList]->AssociateModel(m_index_list_model.get());
 }
 
