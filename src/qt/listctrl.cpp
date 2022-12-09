@@ -654,15 +654,15 @@ public:
 
         beginInsertColumns(QModelIndex(), newColumnIndex, newColumnIndex);
 
-        std::vector<ColumnItem>::iterator i = m_headers.begin();
-        std::advance(i, newColumnIndex);
-        m_headers.insert(i, newColumn);
+        std::vector<ColumnItem>::iterator it = m_headers.begin();
+        std::advance(it, newColumnIndex);
+        m_headers.insert(it, newColumn);
 
         const int numberOfRows = m_rows.size();
 
         for (int i = 0; i < numberOfRows; ++i )
         {
-            std::vector<ColumnItem>::iterator it = m_rows[i].m_columns.begin();
+            it = m_rows[i].m_columns.begin();
             std::advance(it, newColumnIndex);
             m_rows[i].m_columns.insert(it, newColumn);
         }
@@ -1031,6 +1031,15 @@ void wxQtListTreeWidget::itemActivated(const QModelIndex &index)
     EmitListEvent(wxEVT_LIST_ITEM_ACTIVATED, index);
 }
 
+// Specialization: to safely remove and delete the model associated with QTreeView
+template<>
+void wxQtEventSignalHandler< QTreeView, wxListCtrl >::HandleDestroyedSignal()
+{
+    // This handler is emitted immediately before the QTreeView obj is destroyed
+    // at which point the parent object (wxListCtrl) pointer is guaranteed to still
+    // be valid for the model to be safely removed.
+    this->setModel(nullptr);
+}
 
 wxListCtrl::wxListCtrl()
 {
@@ -1088,7 +1097,6 @@ void wxListCtrl::Init()
 
 wxListCtrl::~wxListCtrl()
 {
-    m_qtTreeWidget->setModel(nullptr);
     m_model->deleteLater();
 }
 

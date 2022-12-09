@@ -596,15 +596,11 @@ private:
 // -----------------------------------------------------------------------------
 
 // Helper macro defining common iterator typedefs
-#if wxUSE_STD_CONTAINERS_COMPATIBLY
-    #include <iterator>
+#include <iterator>
 
-    #define WX_DECLARE_LIST_ITER_DIFF_AND_CATEGORY()                          \
-        typedef std::ptrdiff_t difference_type;                               \
-        typedef std::bidirectional_iterator_tag iterator_category;
-#else
-    #define WX_DECLARE_LIST_ITER_DIFF_AND_CATEGORY()
-#endif
+#define WX_DECLARE_LIST_ITER_DIFF_AND_CATEGORY()                          \
+    typedef std::ptrdiff_t difference_type;                               \
+    typedef std::bidirectional_iterator_tag iterator_category;
 
 // and now some heavy magic...
 
@@ -1219,10 +1215,10 @@ public:
         // default
 #ifdef wxWARN_COMPAT_LIST_USE
     wxStringList();
-    wxDEPRECATED( wxStringList(const wxChar *first ...) ); // FIXME-UTF8
+    wxDEPRECATED( wxStringList(const wxChar *first ...) );
 #else
     wxStringList();
-    wxStringList(const wxChar *first ...); // FIXME-UTF8
+    wxStringList(const wxChar *first ...);
 #endif
 
         // copying the string list: the strings are copied, too (extremely

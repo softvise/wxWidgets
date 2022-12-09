@@ -89,7 +89,29 @@ bool wxStaticBox::Create(wxWindow *parent,
     if ( !MSWCreateControl(wxT("BUTTON"), label, pos, size) )
         return false;
 
-    if (!wxSystemOptions::IsFalse(wxT("msw.staticbox.optimized-paint")))
+    if ( ShouldUseCustomPaint() )
+        UseCustomPaint();
+
+    return true;
+}
+
+bool wxStaticBox::ShouldUseCustomPaint() const
+{
+    // When not using double buffering, we paint the box ourselves by default
+    // because using the standard control default WM_PAINT handler results in
+    // awful flicker. However this can be disabled by setting a system option
+    // which can be useful if the application paints on the box itself (which
+    // should be avoided, but some existing code does it).
+    return !IsDoubleBuffered() &&
+            !wxSystemOptions::IsFalse(wxT("msw.staticbox.optimized-paint"));
+}
+
+void wxStaticBox::UseCustomPaint()
+{
+    // If background style is already set to this value, we must have been
+    // already called -- and as we currently never unbind the handler, this
+    // means we don't need to do anything.
+    if ( GetBackgroundStyle() != wxBG_STYLE_PAINT )
     {
         Bind(wxEVT_PAINT, &wxStaticBox::OnPaint, this);
 
@@ -97,8 +119,6 @@ bool wxStaticBox::Create(wxWindow *parent,
         // WM_ERASEBKGND too to avoid flicker.
         SetBackgroundStyle(wxBG_STYLE_PAINT);
     }
-
-    return true;
 }
 
 bool wxStaticBox::Create(wxWindow* parent,
@@ -152,7 +172,7 @@ WXDWORD wxStaticBox::MSWGetStyle(long style, WXDWORD *exstyle) const
         // navigation ourselves, but this could change in the future).
         *exstyle |= WS_EX_CONTROLPARENT;
 
-        if (wxSystemOptions::IsFalse(wxT("msw.staticbox.optimized-paint")))
+        if ( !ShouldUseCustomPaint() )
             *exstyle |= WS_EX_TRANSPARENT;
     }
 
@@ -228,9 +248,24 @@ bool wxStaticBox::SetBackgroundColour(const wxColour& colour)
     return wxStaticBoxBase::SetBackgroundColour(colour);
 }
 
+bool wxStaticBox::SetForegroundColour(const wxColour& colour)
+{
+    if ( !base_type::SetForegroundColour(colour) )
+        return false;
+
+    if ( colour.IsOk() && !m_labelWin )
+    {
+        // We need to be using our custom paint handler to support non-default
+        // colours.
+        UseCustomPaint();
+    }
+
+    return true;
+}
+
 bool wxStaticBox::SetFont(const wxFont& font)
 {
-    if ( !wxCompositeWindowSettersOnly<wxStaticBoxBase>::SetFont(font) )
+    if ( !base_type::SetFont(font) )
         return false;
 
     // We need to reposition the label as its size may depend on the font.
@@ -522,7 +557,7 @@ void wxStaticBox::PaintForeground(wxDC& dc, const RECT&)
             wxUxThemeHandle hTheme(this, L"BUTTON");
             if ( hTheme )
             {
-                wxUxThemeFont themeFont;
+                LOGFONTW themeFont;
                 if ( ::GetThemeFont
                                              (
                                                 hTheme,
@@ -530,10 +565,10 @@ void wxStaticBox::PaintForeground(wxDC& dc, const RECT&)
                                                 BP_GROUPBOX,
                                                 GBS_NORMAL,
                                                 TMT_FONT,
-                                                themeFont.GetPtr()
+                                                &themeFont
                                              ) == S_OK )
                 {
-                    font.Init(themeFont.GetLOGFONT());
+                    font.Init(themeFont);
                     if ( font )
                         selFont.Init(hdc, font);
                 }
@@ -636,10 +671,10 @@ void wxStaticBox::OnPaint(wxPaintEvent& WXUNUSED(event))
                 labelRect.GetLeft() - gap - border,
                 borderTop,
                 &memdc, border, 0);
-        dc.Blit(labelRect.GetRight() + gap, 0,
-                rc.right - (labelRect.GetRight() + gap),
-                borderTop,
-                &memdc, border, 0);
+
+        const int xStart = labelRect.GetRight() + gap;
+        dc.Blit(xStart, 0, rc.right - xStart, borderTop,
+                &memdc, xStart, 0);
     }
     else
     {

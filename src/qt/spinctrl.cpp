@@ -67,17 +67,15 @@ wxString wxSpinCtrlQt< T, Widget >::GetTextValue() const
 template< typename T, typename Widget >
 void wxSpinCtrlQt< T, Widget >::SetValue( T val )
 {
-    m_qtSpinBox->blockSignals(true);
+    wxQtEnsureSignalsBlocked blocker(m_qtSpinBox);
     m_qtSpinBox->setValue( val );
-    m_qtSpinBox->blockSignals(false);
 }
 
 template< typename T, typename Widget >
 void wxSpinCtrlQt< T, Widget >::SetRange( T min, T max )
 {
-    m_qtSpinBox->blockSignals(true);
+    wxQtEnsureSignalsBlocked blocker(m_qtSpinBox);
     m_qtSpinBox->setRange( min, max );
-    m_qtSpinBox->blockSignals(false);
 }
 
 template< typename T, typename Widget >
@@ -140,12 +138,17 @@ QWidget *wxSpinCtrlQt< T, Widget >::GetHandle() const
 // Define a derived helper class to get access to valueFromText:
 
 template < typename Widget >
-class wxQtSpinBoxBase : public wxQtEventSignalHandler< Widget, wxControl >
+class wxQtSpinBoxBase : public wxQtEventSignalHandler< Widget, wxSpinCtrlBase >
 {
 public:
-    wxQtSpinBoxBase( wxWindow *parent, wxControl *handler )
-        : wxQtEventSignalHandler< Widget, wxControl >( parent, handler )
+    wxQtSpinBoxBase( wxWindow *parent, wxSpinCtrlBase *handler )
+        : wxQtEventSignalHandler< Widget, wxSpinCtrlBase >( parent, handler )
     { }
+
+    virtual wxString GetValueForProcessEnter() override
+    {
+        return this->GetHandler()->GetTextValue();
+    }
 
     using Widget::valueFromText;
 };
@@ -153,7 +156,7 @@ public:
 class wxQtSpinBox : public wxQtSpinBoxBase< QSpinBox >
 {
 public:
-    wxQtSpinBox( wxWindow *parent, wxControl *handler )
+    wxQtSpinBox( wxWindow *parent, wxSpinCtrlBase *handler )
         : wxQtSpinBoxBase< QSpinBox >( parent, handler )
     {
         connect(this, static_cast<void (QSpinBox::*)(int index)>(&QSpinBox::valueChanged),
@@ -162,7 +165,7 @@ public:
 private:
     void valueChanged(int value)
     {
-        if ( wxControl *handler = GetHandler() )
+        if ( wxSpinCtrlBase *handler = GetHandler() )
         {
             wxSpinEvent event( wxEVT_SPINCTRL, handler->GetId() );
             event.SetInt( value );
@@ -174,7 +177,7 @@ private:
 class wxQtDoubleSpinBox : public wxQtSpinBoxBase< QDoubleSpinBox >
 {
 public:
-    wxQtDoubleSpinBox( wxWindow *parent, wxControl *handler )
+    wxQtDoubleSpinBox( wxWindow *parent, wxSpinCtrlBase *handler )
         : wxQtSpinBoxBase< QDoubleSpinBox >( parent, handler )
     {
         connect(this, static_cast<void (QDoubleSpinBox::*)(double value)>(&QDoubleSpinBox::valueChanged),
@@ -183,7 +186,7 @@ public:
 private:
     void valueChanged(double value)
     {
-        if ( wxControl *handler = GetHandler() )
+        if ( wxSpinCtrlBase *handler = GetHandler() )
         {
             wxSpinDoubleEvent event( wxEVT_SPINCTRLDOUBLE, handler->GetId() );
             event.SetValue(value);

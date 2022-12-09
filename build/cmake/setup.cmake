@@ -441,19 +441,10 @@ if(CMAKE_USE_PTHREADS_INIT)
             message(WARNING "wxMutex won't be recursive on this platform")
         endif()
     endif()
-    if(wxUSE_COMPILER_TLS)
-        # test for compiler thread-specific variables support
-        wx_check_c_source_compiles("
-            static __thread int n = 0;
-            static __thread int *p = 0;"
-            HAVE___THREAD_KEYWORD
-            pthread.h
-            )
-        wx_check_cxx_source_compiles(
-            "void foo(abi::__forced_unwind&);"
-            HAVE_ABI_FORCEDUNWIND
-            cxxabi.h)
-    endif()
+    wx_check_cxx_source_compiles(
+        "void foo(abi::__forced_unwind&);"
+        HAVE_ABI_FORCEDUNWIND
+        cxxabi.h)
     cmake_pop_check_state()
 endif() # CMAKE_USE_PTHREADS_INIT
 
@@ -541,10 +532,6 @@ wx_check_funcs(fsync
 if(MSVC)
     check_symbol_exists(vsscanf stdio.h HAVE_VSSCANF)
 endif()
-
-# at least under IRIX with mipsPro the C99 round() function is available when
-# building using the C compiler but not when using C++ one
-check_cxx_symbol_exists(round math.h HAVE_ROUND)
 
 # Check includes
 check_include_file(fcntl.h HAVE_FCNTL_H)

@@ -15,7 +15,6 @@
 #include <limits.h>          // for CHAR_BIT used below
 
 #include "wx/chartype.h"     // for __TFILE__ and wxChar
-#include "wx/cpp.h"          // for __WXFUNCTION__
 #include "wx/dlimpexp.h"     // for WXDLLIMPEXP_FWD_BASE
 
 class WXDLLIMPEXP_FWD_BASE wxString;
@@ -166,8 +165,6 @@ inline void wxDisableAsserts() { wxSetAssertHandler(nullptr); }
     (assert macros do it).
  */
 
-#if wxUSE_UNICODE
-
 // these overloads are the ones typically used by debugging macros: we have to
 // provide wxChar* msg version because it's common to use wxT() in the macros
 // and finally, we can't use const wx(char)* msg = nullptr, because that would
@@ -191,16 +188,6 @@ extern WXDLLIMPEXP_BASE void wxOnAssert(const char *file,
                                         const char *func,
                                         const char *cond,
                                         const wxChar *msg) ;
-#endif /* wxUSE_UNICODE */
-
-// this version is for compatibility with wx 2.8 Unicode build only, we don't
-// use it ourselves any more except in ANSI-only build in which case it is all
-// we need
-extern WXDLLIMPEXP_BASE void wxOnAssert(const wxChar *file,
-                                        int line,
-                                        const char *func,
-                                        const wxChar *cond,
-                                        const wxChar *msg = nullptr);
 
 // these overloads work when msg passed to debug macro is a string and we
 // also have to provide wxCStrData overload to resolve ambiguity which would
@@ -296,7 +283,7 @@ extern WXDLLIMPEXP_BASE void wxOnAssert(const char *file,
 
     // A version asserting at the current location.
     #define wxASSERT_MSG(cond, msg) \
-        wxASSERT_MSG_AT(cond, msg, __FILE__, __LINE__, __WXFUNCTION__)
+        wxASSERT_MSG_AT(cond, msg, __FILE__, __LINE__, __func__)
 
     // a version without any additional message, don't use unless condition
     // itself is fully self-explanatory
@@ -319,7 +306,7 @@ extern WXDLLIMPEXP_BASE void wxOnAssert(const char *file,
         wxFAIL_COND_MSG_AT("Assert failure", msg, file, line, func)
 
     #define wxFAIL_COND_MSG(cond, msg) \
-        wxFAIL_COND_MSG_AT(cond, msg, __FILE__, __LINE__, __WXFUNCTION__)
+        wxFAIL_COND_MSG_AT(cond, msg, __FILE__, __LINE__, __func__)
 
     #define wxFAIL_MSG(msg) wxFAIL_COND_MSG("Assert failure", msg)
     #define wxFAIL wxFAIL_MSG((const char*)nullptr)

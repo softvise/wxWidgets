@@ -117,10 +117,6 @@
     #include "wx/msw/uxtheme.h"
 #endif
 
-#if wxUSE_DYNLIB_CLASS
-    #define HAVE_TRACKMOUSEEVENT
-#endif // everything needed for TrackMouseEvent()
-
 #ifndef MAPVK_VK_TO_CHAR
     // Contrary to MS claims that this is present starting with Win2k, it is
     // missing from the SDK released for Windows 5.2 build 3790, aka XP 64-bit
@@ -549,7 +545,18 @@ bool wxWindowMSW::CreateUsingMSWClass(const wxChar* classname,
     // checking it it's already set for the parent, even though we could.
     if ( !classname )
     {
-        exstyle |= WS_EX_COMPOSITED;
+        // We also allow disabling the use of this style globally by setting
+        // a system option if nothing else (i.e. turning it off for individual
+        // windows) works.
+        if ( !wxSystemOptions::GetOptionInt("msw.window.no-composited") )
+        {
+            exstyle |= WS_EX_COMPOSITED;
+
+            // We have to use the class including CS_[HV]REDRAW bits, as
+            // WS_EX_COMPOSITED doesn't work correctly if the entire window is
+            // not redrawn every time it's drawn.
+            style |= wxFULL_REPAINT_ON_RESIZE;
+        }
     }
 
     if ( IsShown() )
@@ -716,7 +723,6 @@ wxWindowMSW::MSWShowWithEffect(bool show,
                                wxShowEffect effect,
                                unsigned timeout)
 {
-#if wxUSE_DYNLIB_CLASS
     if ( effect == wxSHOW_EFFECT_NONE ||
             (GetParent() && !GetParent()->IsShownOnScreen()) )
         return Show(show);
@@ -796,9 +802,6 @@ wxWindowMSW::MSWShowWithEffect(bool show,
     }
 
     return true;
-#else    // wxUSE_DYNLIB_CLASS
-    return Show(show);
-#endif
 }
 
 // Raise the window to the top of the Z order
@@ -1585,9 +1588,6 @@ WXDWORD wxWindowMSW::MSWGetStyle(long flags, WXDWORD *exstyle) const
     {
         *exstyle = 0;
 
-        if ( flags & wxTRANSPARENT_WINDOW )
-            *exstyle |= WS_EX_TRANSPARENT;
-
         switch ( border )
         {
             default:
@@ -1654,24 +1654,6 @@ bool wxWindowMSW::IsMouseInWindow() const
     return hwnd != nullptr;
 }
 
-void wxWindowMSW::OnInternalIdle()
-{
-#ifndef HAVE_TRACKMOUSEEVENT
-    // Check if we need to send a LEAVE event
-    if ( m_mouseInWindow )
-    {
-        // note that we should generate the leave event whether the window has
-        // or doesn't have mouse capture
-        if ( !IsMouseInWindow() )
-        {
-            GenerateMouseLeave();
-        }
-    }
-#endif // !HAVE_TRACKMOUSEEVENT
-
-    wxWindowBase::OnInternalIdle();
-}
-
 // Set this window to be the child of 'parent'.
 bool wxWindowMSW::Reparent(wxWindowBase *parent)
 {
@@ -1700,10 +1682,12 @@ void wxWindowMSW::MSWDisableComposited()
 {
     for ( wxWindow* win = this; win; win = win->GetParent() )
     {
-        wxMSWWinExStyleUpdater(GetHwndOf(win)).TurnOff(WS_EX_COMPOSITED);
-
+        // We never set WS_EX_COMPOSITED on TLWs, and we shouldn't recurse into
+        // different windows, so we can stop here.
         if ( win->IsTopLevel() )
             break;
+
+        wxMSWWinExStyleUpdater(GetHwndOf(win)).TurnOff(WS_EX_COMPOSITED);
     }
 }
 
@@ -3175,7 +3159,6 @@ wxWindowMSW::MSWHandleMessage(WXLRESULT *result,
                                         wParam);
             break;
 
-#ifdef HAVE_TRACKMOUSEEVENT
         case WM_MOUSELEAVE:
             // filter out excess WM_MOUSELEAVE events sent after PopupMenu()
             // (on XP at least)
@@ -3189,7 +3172,6 @@ wxWindowMSW::MSWHandleMessage(WXLRESULT *result,
             // ensure windows XP themes work properly as the mouse moves
             // over widgets like buttons. So don't set processed to true here.
             break;
-#endif // HAVE_TRACKMOUSEEVENT
 
 #if wxUSE_MOUSEWHEEL
         case WM_MOUSEWHEEL:
@@ -4194,47 +4176,9 @@ bool wxWindowMSW::HandleTooltipNotify(WXUINT code,
     //
     // Note that using a static buffer should not be a problem as only a single
     // tooltip can be shown at the same time anyhow.
-#if !wxUSE_UNICODE
-    if ( code == (WXUINT) TTN_NEEDTEXTW )
-    {
-        // We need to convert tooltip from multi byte to Unicode on the fly.
-        static wchar_t buf[513];
-
-        // Truncate tooltip length if needed as otherwise we might not have
-        // enough space for it in the buffer and MultiByteToWideChar() would
-        // return an error
-        size_t tipLength = wxMin(ttip.length(), WXSIZEOF(buf) - 1);
-
-        // Convert to WideChar without adding the NUL character. The NUL
-        // character is added afterwards (this is more efficient).
-        int len = ::MultiByteToWideChar
-                    (
-                        CP_ACP,
-                        0,                      // no flags
-                        ttip.t_str(),
-                        tipLength,
-                        buf,
-                        WXSIZEOF(buf) - 1
-                    );
-
-        if ( !len )
-        {
-            wxLogLastError(wxT("MultiByteToWideChar()"));
-        }
-
-        buf[len] = L'\0';
-        ttText->lpszText = (LPSTR) buf;
-    }
-    else // TTN_NEEDTEXTA
-#endif // !wxUSE_UNICODE
-    {
-        // we get here if we got TTN_NEEDTEXTA (only happens in ANSI build) or
-        // if we got TTN_NEEDTEXTW in Unicode build: in this case we just have
-        // to copy the string we have into the buffer
-        static wxChar buf[513];
-        wxStrlcpy(buf, ttip.c_str(), WXSIZEOF(buf));
-        ttText->lpszText = buf;
-    }
+    static wxChar buf[513];
+    wxStrlcpy(buf, ttip.c_str(), WXSIZEOF(buf));
+    ttText->lpszText = buf;
 
     return true;
 }
@@ -4799,8 +4743,6 @@ wxWindowMSW::MSWOnMeasureItem(int id, WXMEASUREITEMSTRUCT *itemStruct)
 // DPI
 // ---------------------------------------------------------------------------
 
-#if wxUSE_DYNLIB_CLASS
-
 namespace wxMSWImpl
 {
 
@@ -4810,14 +4752,11 @@ AutoSystemDpiAware::ms_pfnSetThreadDpiAwarenessContext =
 
 } // namespace wxMSWImpl
 
-#endif // wxUSE_DYNLIB_CLASS
-
 namespace
 {
 
 static wxSize GetWindowDPI(HWND hwnd)
 {
-#if wxUSE_DYNLIB_CLASS
     typedef UINT (WINAPI *GetDpiForWindow_t)(HWND hwnd);
     static GetDpiForWindow_t s_pfnGetDpiForWindow = nullptr;
     static bool s_initDone = false;
@@ -4834,7 +4773,6 @@ static wxSize GetWindowDPI(HWND hwnd)
         const int dpi = static_cast<int>(s_pfnGetDpiForWindow(hwnd));
         return wxSize(dpi, dpi);
     }
-#endif // wxUSE_DYNLIB_CLASS
 
     return wxSize();
 }
@@ -4844,7 +4782,6 @@ static wxSize GetWindowDPI(HWND hwnd)
 /*extern*/
 int wxGetSystemMetrics(int nIndex, const wxWindow* window)
 {
-#if wxUSE_DYNLIB_CLASS
     if ( !window )
         window = wxApp::GetMainTopWindow();
 
@@ -4867,9 +4804,6 @@ int wxGetSystemMetrics(int nIndex, const wxWindow* window)
             return s_pfnGetSystemMetricsForDpi(nIndex, (UINT)dpi);
         }
     }
-#else
-    wxUnusedVar(window);
-#endif // wxUSE_DYNLIB_CLASS
 
     return ::GetSystemMetrics(nIndex);
 }
@@ -4882,7 +4816,6 @@ bool wxSystemParametersInfo(UINT uiAction, UINT uiParam, PVOID pvParam, UINT fWi
     // uiAction values corresponding to strings and use a temporary wide buffer
     // for them, and convert the returned value to ANSI after the call. Instead
     // of doing all this, just don't use it at all in the deprecated ANSI build.
-#if wxUSE_DYNLIB_CLASS && wxUSE_UNICODE
     if ( !window )
         window = wxApp::GetMainTopWindow();
 
@@ -4908,9 +4841,6 @@ bool wxSystemParametersInfo(UINT uiAction, UINT uiParam, PVOID pvParam, UINT fWi
             }
         }
     }
-#else
-    wxUnusedVar(window);
-#endif // wxUSE_DYNLIB_CLASS
 
     return ::SystemParametersInfo(uiAction, uiParam, pvParam, fWinIni) == TRUE;
 }
@@ -6037,7 +5967,6 @@ bool wxWindowMSW::HandleMouseMove(int x, int y, WXUINT flags)
             // Generate an ENTER event
             m_mouseInWindow = true;
 
-#ifdef HAVE_TRACKMOUSEEVENT
             typedef BOOL (WINAPI *_TrackMouseEvent_t)(LPTRACKMOUSEEVENT);
             static _TrackMouseEvent_t s_pfn_TrackMouseEvent;
             static bool s_initDone = false;
@@ -6064,7 +5993,6 @@ bool wxWindowMSW::HandleMouseMove(int x, int y, WXUINT flags)
 
                 (*s_pfn_TrackMouseEvent)(&trackinfo);
             }
-#endif // HAVE_TRACKMOUSEEVENT
 
             wxMouseEvent event(wxEVT_ENTER_WINDOW);
             InitMouseEvent(event, x, y, flags);
@@ -6072,7 +6000,6 @@ bool wxWindowMSW::HandleMouseMove(int x, int y, WXUINT flags)
             (void)HandleWindowEvent(event);
         }
     }
-#ifdef HAVE_TRACKMOUSEEVENT
     else // mouse not in window
     {
         // Check if we need to send a LEAVE event
@@ -6083,7 +6010,6 @@ bool wxWindowMSW::HandleMouseMove(int x, int y, WXUINT flags)
             GenerateMouseLeave();
         }
     }
-#endif // HAVE_TRACKMOUSEEVENT
 
     // Windows often generates mouse events even if mouse position hasn't
     // changed (http://article.gmane.org/gmane.comp.lib.wxwidgets.devel/66576)
@@ -6406,9 +6332,7 @@ wxWindowMSW::CreateKeyEvent(wxEventType evType,
                                      (
                                         wParam,
                                         lParam
-#if wxUSE_UNICODE
                                         , &event.m_uniChar
-#endif // wxUSE_UNICODE
                                      );
 
     return event;
@@ -6422,11 +6346,9 @@ wxWindowMSW::CreateCharEvent(wxEventType evType,
     wxKeyEvent event(evType);
     InitAnyKeyEvent(event, wParam, lParam);
 
-#if wxUSE_UNICODE
     // TODO: wParam uses UTF-16 so this is incorrect for characters outside of
     //       the BMP, we should use WM_UNICHAR to handle them.
     event.m_uniChar = wParam;
-#endif // wxUSE_UNICODE
 
     // Set non-Unicode key code too for compatibility if possible.
     if ( wParam < 0x80 )
@@ -7233,9 +7155,7 @@ wxKeyboardHook(int nCode, WXWPARAM wParam, WXLPARAM lParam)
         if ( !gs_modalEntryWindowCount && !::GetCapture() )
         {
             if ( id != WXK_NONE
-#if wxUSE_UNICODE
                     || static_cast<int>(uc) != WXK_NONE
-#endif // wxUSE_UNICODE
                     )
             {
                 wxWindow const* win = wxWindow::DoFindFocus();
@@ -7251,9 +7171,7 @@ wxKeyboardHook(int nCode, WXWPARAM wParam, WXLPARAM lParam)
                 MSWInitAnyKeyEvent(event, wParam, lParam, win);
 
                 event.m_keyCode = id;
-#if wxUSE_UNICODE
                 event.m_uniChar = uc;
-#endif // wxUSE_UNICODE
 
                 wxEvtHandler * const handler = win ? win->GetEventHandler()
                                                    : wxTheApp;

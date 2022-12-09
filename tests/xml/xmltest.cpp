@@ -181,7 +181,6 @@ void XmlTestCase::LoadSave()
     CPPUNIT_ASSERT_EQUAL( xmlText, sos.GetString() );
 
 
-#if wxUSE_UNICODE
     const char *utf8xmlText =
 "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
 "<word>\n"
@@ -204,7 +203,6 @@ void XmlTestCase::LoadSave()
     CPPUNIT_ASSERT( doc.Save(sos8) );
     CPPUNIT_ASSERT_EQUAL( wxString(utf8xmlText),
                           wxString(sos8.GetString().ToUTF8()) );
-#endif // wxUSE_UNICODE
 
     const char *xmlTextProlog =
 "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
@@ -609,4 +607,21 @@ void XmlTestCase::Doctype()
     // Using both single and double quotes in system ID is not allowed.
     dt = wxXmlDoctype( "root", "O'Reilly (\"editor\")", "Public-ID" );
     CPPUNIT_ASSERT( !dt.IsValid() );
+}
+
+// This test is disabled by default as it requires the environment variable
+// below to be defined to point to a XML file to load.
+TEST_CASE("XML::Load", "[xml][.]")
+{
+    wxString file;
+    REQUIRE( wxGetEnv("WX_TEST_XML_FILE", &file) );
+
+    wxXmlDocument doc;
+    REQUIRE( doc.Load(file) );
+    CHECK( doc.IsOk() );
+
+    wxStringOutputStream sos;
+    REQUIRE( doc.Save(sos) );
+
+    WARN("Dump of " << file << ":\n" << sos.GetString());
 }

@@ -813,8 +813,6 @@ void wxTextEntry::GetSelection(long *from, long *to) const
 
 #ifdef HAS_AUTOCOMPLETE
 
-#if wxUSE_DYNLIB_CLASS
-
 bool wxTextEntry::DoAutoCompleteFileNames(int flags)
 {
     DWORD dwFlags = 0;
@@ -846,8 +844,6 @@ bool wxTextEntry::DoAutoCompleteFileNames(int flags)
 
     return true;
 }
-
-#endif // wxUSE_DYNLIB_CLASS
 
 void wxTextEntry::MSWProcessSpecialKey(wxKeyEvent& WXUNUSED(event))
 {
@@ -995,7 +991,7 @@ void wxTextEntry::ForceUpper()
 
 bool wxTextEntry::SetHint(const wxString& hint)
 {
-    if ( wxGetWinVersion() >= wxWinVersion_Vista && wxUxThemeIsActive() )
+    if ( wxUxThemeIsActive() )
     {
         // notice that this message always works with Unicode strings
         //

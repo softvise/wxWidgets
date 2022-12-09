@@ -174,11 +174,7 @@ bool wxNotebook::Create(wxWindow *parent,
     }
 #endif //wxUSE_UXTHEME
 
-#if defined(__WINE__) && wxUSE_UNICODE
-    LPCTSTR className = L"SysTabControl32";
-#else
     LPCTSTR className = WC_TABCONTROL;
-#endif
 
 #if USE_NOTEBOOK_ANTIFLICKER
     // SysTabCtl32 class has natively CS_HREDRAW and CS_VREDRAW enabled and it
@@ -501,6 +497,21 @@ void wxNotebook::SetPadding(const wxSize& padding)
 void wxNotebook::SetTabSize(const wxSize& sz)
 {
     ::SendMessage(GetHwnd(), TCM_SETITEMSIZE, 0, MAKELPARAM(sz.x, sz.y));
+}
+
+wxRect wxNotebook::GetTabRect(size_t page) const
+{
+    wxRect r;
+    wxCHECK_MSG(IS_VALID_PAGE(page), r, wxT("invalid notebook page"));
+
+    if (GetPageCount() > 0)
+    {
+        RECT rect;
+        if (TabCtrl_GetItemRect(GetHwnd(), page, &rect))
+            r = wxRectFromRECT(rect);
+    }
+
+    return r;
 }
 
 wxSize wxNotebook::CalcSizeFromPage(const wxSize& sizePage) const

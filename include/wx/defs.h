@@ -259,6 +259,19 @@ typedef short int WXTYPE;
     #define wxFALLTHROUGH ((void)0)
 #endif
 
+/* wxNODISCARD is used to indicate that the function return value must not be ignored */
+
+#if wxCHECK_CXX_STD(201703L)
+    #define wxNODISCARD [[nodiscard]]
+#elif defined(__VISUALC__)
+    #define wxNODISCARD _Check_return_
+#elif defined(__clang__) || defined(__GNUCC__)
+    #define wxNODISCARD __attribute__ ((warn_unused_result))
+#else
+    #define wxNODISCARD
+#endif
+
+
 /* these macros are obsolete, use the standard C++ casts directly now */
 #define wx_static_cast(t, x) static_cast<t>(x)
 #define wx_const_cast(t, x) const_cast<t>(x)
@@ -413,12 +426,17 @@ typedef short int WXTYPE;
 /*  Very common macros */
 /*  ---------------------------------------------------------------------------- */
 
-/*  Printf-like attribute definitions to obtain warnings with GNU C/C++ */
-#if defined(__GNUC__) && !wxUSE_UNICODE
+/* Printf-like attribute definitions which could be used to obtain warnings
+   with GNU C/C++ but unfortunately don't work any longer
+
+   TODO: make this work with Unicode functions
+
+#if defined(__GNUC__)
 #    define WX_ATTRIBUTE_FORMAT(like, m, n) __attribute__ ((__format__ (like, m, n)))
 #else
-#    define WX_ATTRIBUTE_FORMAT(like, m, n)
-#endif
+*/
+
+#define WX_ATTRIBUTE_FORMAT(like, m, n)
 
 #ifndef WX_ATTRIBUTE_PRINTF
 #   define WX_ATTRIBUTE_PRINTF(m, n) WX_ATTRIBUTE_FORMAT(__printf__, m, n)
@@ -801,12 +819,8 @@ typedef short int WXTYPE;
     #define WXUNUSED(identifier) identifier
 #endif
 
-/*  some arguments are not used in unicode mode */
-#if wxUSE_UNICODE
-    #define WXUNUSED_IN_UNICODE(param)  WXUNUSED(param)
-#else
-    #define WXUNUSED_IN_UNICODE(param)  param
-#endif
+/* Defined for compatibility only. */
+#define WXUNUSED_IN_UNICODE(param)  WXUNUSED(param)
 
 /*  unused parameters in non stream builds */
 #if wxUSE_STREAMS
@@ -1385,7 +1399,7 @@ wxALLOW_COMBINING_ENUMS(wxSizerFlagBits, wxStretch)
       |  |  |  |  |  |  |  |  |  |  |  |  |  |  \____ wxPOPUP_WINDOW
       |  |  |  |  |  |  |  |  |  |  |  |  |  \_______ wxWANTS_CHARS
       |  |  |  |  |  |  |  |  |  |  |  |  \__________ wxTAB_TRAVERSAL
-      |  |  |  |  |  |  |  |  |  |  |  \_____________ wxTRANSPARENT_WINDOW
+      |  |  |  |  |  |  |  |  |  |  |  \_____________ (ex-wxTRANSPARENT_WINDOW)
       |  |  |  |  |  |  |  |  |  |  \________________ wxBORDER_NONE
       |  |  |  |  |  |  |  |  |  \___________________ wxCLIP_CHILDREN
       |  |  |  |  |  |  |  |  \______________________ wxALWAYS_SHOW_SB
@@ -1442,7 +1456,8 @@ wxALLOW_COMBINING_ENUMS(wxSizerFlagBits, wxStretch)
 /*  for subwindows/controls */
 #define wxCLIP_SIBLINGS         0x20000000
 
-#define wxTRANSPARENT_WINDOW    0x00100000
+/* This style is obsolete and doesn't do anything. */
+#define wxTRANSPARENT_WINDOW    0
 
 /*  Add this style to a panel to get tab traversal working outside of dialogs */
 /*  (on by default for wxPanel, wxDialog, wxScrolledWindow) */
@@ -1475,7 +1490,7 @@ wxALLOW_COMBINING_ENUMS(wxSizerFlagBits, wxStretch)
  */
 #define wxWINDOW_STYLE_MASK     \
     (wxVSCROLL|wxHSCROLL|wxBORDER_MASK|wxALWAYS_SHOW_SB|wxCLIP_CHILDREN| \
-     wxCLIP_SIBLINGS|wxTRANSPARENT_WINDOW|wxTAB_TRAVERSAL|wxWANTS_CHARS| \
+     wxCLIP_SIBLINGS|wxTAB_TRAVERSAL|wxWANTS_CHARS| \
      wxRETAINED|wxPOPUP_WINDOW|wxFULL_REPAINT_ON_RESIZE)
 
 /*
@@ -2588,17 +2603,15 @@ typedef int (* LINKAGEMODE wxListIterateFunction)(void *current);
 #endif
 
 #if defined(__CYGWIN__) && defined(__WXMSW__)
-#   if wxUSE_STD_CONTAINERS || defined(wxUSE_STD_STRING)
-         /*
-            NASTY HACK because the gethostname in sys/unistd.h which the gnu
-            stl includes and wx builds with by default clash with each other
-            (windows version 2nd param is int, sys/unistd.h version is unsigned
-            int).
-          */
-#        define gethostname gethostnameHACK
-#        include <unistd.h>
-#        undef gethostname
-#   endif
+    /*
+       NASTY HACK because the gethostname in sys/unistd.h which the gnu
+       stl includes and wx builds with by default clash with each other
+       (windows version 2nd param is int, sys/unistd.h version is unsigned
+       int).
+     */
+#   define gethostname gethostnameHACK
+#   include <unistd.h>
+#   undef gethostname
 #endif
 
 /*  --------------------------------------------------------------------------- */
@@ -2987,7 +3000,7 @@ typedef GtkWidget *WXWidget;
 
 #endif /*  __WXGTK__ */
 
-#if defined(__WXGTK__) || (defined(__WXX11__) && wxUSE_UNICODE)
+#if defined(__WXGTK__) || defined(__WXX11__)
 #define wxUSE_PANGO 1
 #else
 #define wxUSE_PANGO 0

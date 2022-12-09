@@ -53,7 +53,7 @@ if(NOT MSVC OR MSVC_VERSION GREATER 1800)
         set(wxCXX_STANDARD_DEFAULT COMPILER_DEFAULT)
     endif()
     wx_option(wxBUILD_CXX_STANDARD "C++ standard used to build wxWidgets targets"
-              ${wxCXX_STANDARD_DEFAULT} STRINGS COMPILER_DEFAULT 98 11 14 17 20)
+              ${wxCXX_STANDARD_DEFAULT} STRINGS COMPILER_DEFAULT 11 14 17 20)
 endif()
 
 if(WIN32)
@@ -76,17 +76,16 @@ mark_as_advanced(wxBUILD_PIC)
 wx_option(wxUSE_NO_RTTI "disable RTTI support" OFF)
 
 # STL options
+wx_option(wxUSE_STD_IOSTREAM "use standard C++ streams" ON)
 wx_option(wxUSE_STL "use standard C++ classes for everything" OFF)
 set(wxTHIRD_PARTY_LIBRARIES ${wxTHIRD_PARTY_LIBRARIES} wxUSE_STL "use C++ STL classes")
 wx_dependent_option(wxUSE_STD_CONTAINERS "use standard C++ container classes" ON "wxUSE_STL" OFF)
 
-wx_option(wxUSE_UNICODE "compile with Unicode support (NOT RECOMMENDED to be turned off)")
 if(NOT WIN32)
     wx_option(wxUSE_UNICODE_UTF8 "use UTF-8 representation for strings (Unix only)" OFF)
     wx_dependent_option(wxUSE_UTF8_LOCALE_ONLY "only support UTF-8 locales in UTF-8 build (Unix only)" ON "wxUSE_UNICODE_UTF8" OFF)
 endif()
 
-wx_option(wxUSE_COMPILER_TLS "enable use of compiler TLS support")
 if(NOT WIN32)
     wx_option(wxUSE_VISIBILITY "use of ELF symbols visibility")
 endif()
@@ -97,7 +96,7 @@ wx_option(wxUSE_REPRODUCIBLE_BUILD "enable reproducable build" OFF)
 # external libraries
 # ---------------------------------------------------------------------------
 set(PCRE2_CODE_UNIT_WIDTH 8)
-if(wxUSE_UNICODE AND (NOT DEFINED wxUSE_UNICODE_UTF8 OR NOT wxUSE_UNICODE_UTF8))
+if(NOT DEFINED wxUSE_UNICODE_UTF8 OR NOT wxUSE_UNICODE_UTF8)
     # This is also checked in setup.cmake, but setup.cmake will run after options.cmake.
     include(CheckTypeSize)
     check_type_size(wchar_t SIZEOF_WCHAR_T)
@@ -169,8 +168,8 @@ else()
     set(wxUSE_DIALUP_MANAGER_DEFAULT ON)
 endif()
 wx_option(wxUSE_DIALUP_MANAGER "use dialup network classes" ${wxUSE_DIALUP_MANAGER_DEFAULT})
-wx_option(wxUSE_DYNLIB_CLASS "use wxLibrary class for DLL loading")
-wx_option(wxUSE_DYNAMIC_LOADER "use (new) wxDynamicLibrary class")
+wx_option(wxUSE_DYNLIB_CLASS "use wxDynamicLibrary class for DLL loading")
+wx_option(wxUSE_DYNAMIC_LOADER "use wxPluginLibrary and wxPluginManager classes")
 wx_option(wxUSE_EXCEPTIONS "build exception-safe library")
 wx_option(wxUSE_EXTENDED_RTTI "use extended RTTI (XTI)" OFF)
 wx_option(wxUSE_FFILE "use wxFFile class")

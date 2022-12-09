@@ -1528,9 +1528,7 @@ wxDateTime::ParseFormat(const wxString& date,
                     else if
                     (
                         *input == wxS('-')
-#if wxUSE_UNICODE
                         || *input == wxString::FromUTF8("\xe2\x88\x92")
-#endif
                     )
                         minusFound = true;
                     else
@@ -1753,6 +1751,10 @@ wxDateTime::ParseDateTime(const wxString& date, wxString::const_iterator *end)
     {
         // Skip spaces, as the ParseTime() function fails on spaces
         while ( endDate != date.end() && wxIsspace(*endDate) )
+            ++endDate;
+
+        // Skip possible 'T' separator in front of time component
+        if ( endDate != date.end() && *endDate == 'T' )
             ++endDate;
 
         const wxString timestr(endDate, date.end());

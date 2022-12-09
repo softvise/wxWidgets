@@ -44,9 +44,8 @@ typedef wxScopedArray<wxDataFormat> wxDataFormatArray;
 static GdkAtom  g_targetsAtom     = nullptr;
 static GdkAtom  g_timestampAtom   = nullptr;
 
-#if wxUSE_UNICODE
-extern GdkAtom g_altTextAtom;
-#endif
+// This is defined in src/gtk/dataobj.cpp.
+extern GdkAtom wxGetAltTextAtom();
 
 // the trace mask we use with wxLogTrace() - call
 // wxLog::AddTraceMask(TRACE_CLIPBOARD) to enable the trace messages from here
@@ -306,7 +305,7 @@ selection_handler( GtkWidget *WXUNUSED(widget),
     if ( !size )
         return;
 
-    wxLogTrace(TRACE_CLIPBOARD, "Valid clipboard data found");
+    wxLogTrace(TRACE_CLIPBOARD, "Valid clipboard data of size %d found", size);
 
     wxCharBuffer buf(size - 1); // it adds 1 internally (for NUL)
 
@@ -316,7 +315,6 @@ selection_handler( GtkWidget *WXUNUSED(widget),
 
     // use UTF8_STRING format if requested in Unicode build but just plain
     // STRING one in ANSI or if explicitly asked in Unicode
-#if wxUSE_UNICODE
     if (format == wxDF_UNICODETEXT)
     {
         gtk_selection_data_set_text(
@@ -325,7 +323,6 @@ selection_handler( GtkWidget *WXUNUSED(widget),
             size );
     }
     else
-#endif // wxUSE_UNICODE
     {
         gtk_selection_data_set(
             selection_data,
@@ -341,16 +338,18 @@ void wxClipboard::GTKOnSelectionReceived(const GtkSelectionData& sel)
 {
     wxCHECK_RET( m_receivedData, wxT("should be inside GetData()") );
 
-    const wxDataFormat format(gtk_selection_data_get_target(const_cast<GtkSelectionData*>(&sel)));
-    wxLogTrace(TRACE_CLIPBOARD, wxT("Received selection %s"),
-               format.GetId());
+    GtkSelectionData* const gsel = const_cast<GtkSelectionData*>(&sel);
+
+    const wxDataFormat format(gtk_selection_data_get_target(gsel));
+    wxLogTrace(TRACE_CLIPBOARD, wxT("Received selection %s, len=%d"),
+               format.GetId(), gtk_selection_data_get_length(gsel));
 
     if ( !m_receivedData->IsSupportedFormat(format, wxDataObject::Set) )
         return;
 
     m_receivedData->SetData(format,
-        gtk_selection_data_get_length(const_cast<GtkSelectionData*>(&sel)),
-        gtk_selection_data_get_data(const_cast<GtkSelectionData*>(&sel)));
+        gtk_selection_data_get_length(gsel),
+        gtk_selection_data_get_data(gsel));
     m_formatSupported = true;
 }
 
@@ -689,13 +688,11 @@ bool wxClipboard::IsSupported( const wxDataFormat& format )
     if ( DoIsSupported(format) )
         return true;
 
-#if wxUSE_UNICODE
     if ( format == wxDF_UNICODETEXT )
     {
         // also with plain STRING format
-        return DoIsSupported(g_altTextAtom);
+        return DoIsSupported(wxGetAltTextAtom());
     }
-#endif // wxUSE_UNICODE
 
     return false;
 }
@@ -744,11 +741,7 @@ bool wxClipboard::GetData( wxDataObject& data )
            tokens is given (that is more than 1 for non-ASCII characters)
            (tested with Gnumeric-1.6.1 and OpenOffice.org-2.0.2)
          */
-#if wxUSE_UNICODE
         if ( format != wxDF_UNICODETEXT || data.GetDataSize(format) > 0 )
-#else // !UNICODE
-        if ( format != wxDF_TEXT || data.GetDataSize(format) > 1 )
-#endif // UNICODE / !UNICODE
         {
             wxCHECK_MSG( m_formatSupported, false,
                          wxT("error retrieving data from clipboard") );

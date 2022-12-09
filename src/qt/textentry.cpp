@@ -9,6 +9,8 @@
 #include "wx/wxprec.h"
 
 #include "wx/textentry.h"
+#include "wx/window.h"
+
 
 wxTextEntry::wxTextEntry()
 {
@@ -110,4 +112,3 @@ wxWindow *wxTextEntry::GetEditableWindow()
 {
     return nullptr;
 }
-

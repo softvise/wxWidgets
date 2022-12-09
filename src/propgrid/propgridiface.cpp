@@ -125,7 +125,7 @@ wxPGProperty* wxPropertyGridInterface::RemoveProperty( wxPGPropArg id )
 {
     wxPG_PROP_ARG_CALL_PROLOG_RETVAL(wxNullProperty)
 
-    wxCHECK( !p->GetChildCount() || p->HasFlag(wxPG_PROP_AGGREGATE),
+    wxCHECK( !p->HasAnyChild() || p->HasFlag(wxPG_PROP_AGGREGATE),
              wxNullProperty);
 
     wxPropertyGridPageState* state = p->GetParentState();
@@ -286,7 +286,7 @@ bool wxPropertyGridInterface::ExpandAll( bool doExpand )
 {
     wxPropertyGridPageState* state = m_pState;
 
-    if ( !state->DoGetRoot()->GetChildCount() )
+    if ( !state->DoGetRoot()->HasAnyChild() )
         return true;
 
     wxPropertyGrid* pg = state->GetGrid();
@@ -302,7 +302,7 @@ bool wxPropertyGridInterface::ExpandAll( bool doExpand )
     for ( it = GetVIterator( wxPG_ITERATE_ALL ); !it.AtEnd(); it.Next() )
     {
         wxPGProperty* p = it.GetProperty();
-        if ( p->GetChildCount() )
+        if ( p->HasAnyChild() )
         {
             if ( doExpand )
             {
@@ -504,7 +504,7 @@ wxPGProperty* wxPropertyGridInterface::GetPropertyByName( const wxString& name,
                                                              const wxString& subname ) const
 {
     wxPGProperty* p = DoGetPropertyByName(name);
-    if ( !p || !p->GetChildCount() )
+    if ( !p || !p->HasAnyChild() )
         return wxNullProperty;
 
     return p->GetPropertyByName(subname);
@@ -757,7 +757,7 @@ wxVariant wxPropertyGridInterface::GetPropertyValue(wxPGPropArg id)
 // String is different from others.
 wxString wxPropertyGridInterface::GetPropertyValueAsString( wxPGPropArg id ) const
 {
-    wxPG_PROP_ARG_CALL_PROLOG_RETVAL(wxEmptyString)
+    wxPG_PROP_ARG_CALL_PROLOG_RETVAL(wxString())
     return p->GetValueAsString(wxPG_FULL_VALUE);
 }
 
@@ -888,7 +888,7 @@ public:
     {
         m_it.Init( state, flags );
     }
-    virtual ~wxPGVIteratorBase_State() { }
+    virtual ~wxPGVIteratorBase_State() = default;
     virtual void Next() override { m_it.Next(); }
 };
 
@@ -910,9 +910,8 @@ static wxString EscapeDelimiters(const wxString& s)
     wxString result;
     result.reserve(s.length());
 
-    for (wxString::const_iterator it = s.begin(); it != s.end(); ++it)
+    for ( wxStringCharType ch : s )
     {
-        wxStringCharType ch = *it;
         if ( ch == wxS(';') || ch == wxS('|') || ch == wxS(',') )
             result += wxS('\\');
         result += ch;
@@ -936,11 +935,8 @@ wxString wxPropertyGridInterface::SaveEditableState( int includedStates ) const
         pageIndex++;
     }
 
-    for (wxVector<wxPropertyGridPageState*>::const_iterator it_ps = pageStates.begin();
-         it_ps != pageStates.end(); ++it_ps)
+    for( wxPropertyGridPageState* pageState : pageStates )
     {
-        wxPropertyGridPageState* pageState = *it_ps;
-
         if ( includedStates & SelectionState )
         {
             wxString sel;
@@ -1040,9 +1036,8 @@ bool wxPropertyGridInterface::RestoreEditableState( const wxString& src, int res
 
         wxArrayString kvpairStrings = ::wxSplit(pageStrings[pageIndex], wxS(';'), wxS('\\'));
 
-        for ( size_t i=0; i<kvpairStrings.size(); i++ )
+        for( const wxString& kvs : kvpairStrings )
         {
-            const wxString& kvs = kvpairStrings[i];
             int eq_pos = kvs.Find(wxS('='));
             if ( eq_pos != wxNOT_FOUND )
             {
@@ -1069,9 +1064,8 @@ bool wxPropertyGridInterface::RestoreEditableState( const wxString& src, int res
                         }
 
                         // Then expand those which names are in values
-                        for ( size_t n=0; n<values.size(); n++ )
+                        for( const wxString& name : values )
                         {
-                            const wxString& name = values[n];
                             wxPGProperty* prop = GetPropertyByName(name);
                             if ( prop )
                                 pageState->DoExpand(prop);

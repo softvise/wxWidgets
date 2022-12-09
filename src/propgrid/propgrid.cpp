@@ -144,7 +144,7 @@ class wxPGGlobalVarsClassManager : public wxModule
 {
     wxDECLARE_DYNAMIC_CLASS(wxPGGlobalVarsClassManager);
 public:
-    wxPGGlobalVarsClassManager() {}
+    wxPGGlobalVarsClassManager() = default;
     virtual bool OnInit() override { wxPGGlobalVars = new wxPGGlobalVarsClass(); return true; }
     virtual void OnExit() override { wxDELETE(wxPGGlobalVars); }
 };
@@ -205,8 +205,10 @@ wxPGGlobalVarsClass::~wxPGGlobalVarsClass()
     delete m_fontFamilyChoices;
 
 #if wxUSE_VALIDATORS
-    for ( size_t i = 0; i < m_arrValidators.size(); i++ )
-        delete (m_arrValidators[i]);
+    for ( wxValidator* val : m_arrValidators )
+    {
+        delete val;
+    }
 #endif
 
     // Destroy editor class instances.
@@ -479,17 +481,14 @@ void wxPropertyGrid::Init2()
 
 wxPropertyGrid::~wxPropertyGrid()
 {
-    size_t i;
-
 #if wxUSE_THREADS
     wxCriticalSectionLocker lock(wxPGGlobalVars->m_critSect);
 #endif
 
     //
     // Remove grid and property pointers from live wxPropertyGridEvents.
-    for ( i=0; i<m_liveEvents.size(); i++ )
+    for ( wxPropertyGridEvent* evt : m_liveEvents )
     {
-        wxPropertyGridEvent* evt = m_liveEvents[i];
         evt->SetPropertyGrid(nullptr);
         evt->SetProperty(nullptr);
     }
@@ -562,11 +561,9 @@ wxPropertyGrid::~wxPropertyGrid()
         delete m_pState;
 
     // Delete common value records
-    for ( i=0; i<m_commonValues.size(); i++ )
+    for ( wxPGCommonValue* v : m_commonValues )
     {
-        // Use temporary variable to work around possible strange VC6 (asserts because m_size is zero)
-        wxPGCommonValue* value = m_commonValues[i];
-        delete value;
+        delete v;
     }
 #if WXWIN_COMPATIBILITY_3_0
     wxASSERT( gs_deletedEditorObjects[this]->empty() );
@@ -1751,10 +1748,8 @@ wxString& wxPropertyGrid::ExpandEscapeSequences( wxString& dst_str, const wxStri
 
     bool prev_is_slash = false;
 
-    for ( wxString::const_iterator i = src_str.begin(); i != src_str.end(); ++i )
+    for ( wxUniChar a : src_str )
     {
-        wxUniChar a = *i;
-
         if ( a != wxS('\\') )
         {
             if ( !prev_is_slash )
@@ -1801,10 +1796,8 @@ wxString& wxPropertyGrid::CreateEscapeSequences( wxString& dst_str, const wxStri
         return dst_str;
     }
 
-    for ( wxString::const_iterator i = src_str.begin(); i != src_str.end(); ++i )
+    for( wxUniChar a : src_str )
     {
-        wxUniChar a = *i;
-
         if ( a == wxS('\r') )
             // Carriage Return.
             dst_str << wxS("\\r");
@@ -2176,9 +2169,9 @@ int wxPropertyGrid::DoDrawItems( wxDC& dc,
     wxVector<int> splitterPos;
     splitterPos.reserve(colCount);
     int sx = x;
-    for (wxVector<int>::const_iterator cit = colWidths.begin(); cit != colWidths.end(); ++cit)
+    for ( int cw : colWidths )
     {
-        sx += *cit;
+        sx += cw;
         splitterPos.push_back(sx);
     }
 
@@ -2914,7 +2907,7 @@ bool wxPropertyGrid::CommitChangesFromEditor( wxUint32 flags )
         wxWindow* oldFocus = m_curFocused;
 
         bool validationFailure = false;
-        bool forceSuccess = (flags & (wxPG_SEL_NOVALIDATE|wxPG_SEL_FORCE)) ? true : false;
+        bool forceSuccess = (flags & (wxPG_SEL_NOVALIDATE | wxPG_SEL_FORCE)) != 0;
 
         m_chgInfo_changedProperty = nullptr;
 
@@ -3168,7 +3161,7 @@ void wxPropertyGrid::DoHidePropertyError( wxPGProperty* WXUNUSED(property) )
         wxStatusBar* pStatusBar = GetStatusBar();
         if ( pStatusBar )
         {
-            pStatusBar->SetStatusText(wxEmptyString);
+            pStatusBar->SetStatusText(wxString());
             return;
         }
     }
@@ -3335,7 +3328,7 @@ void wxPropertyGrid::DoOnValidationFailureReset( wxPGProperty* property )
         {
             wxStatusBar* pStatusBar = GetStatusBar();
             if ( pStatusBar )
-                pStatusBar->SetStatusText(wxEmptyString);
+                pStatusBar->SetStatusText(wxString());
         }
     }
 #endif
@@ -3476,7 +3469,7 @@ wxVariant wxPropertyGrid::GetUncommittedPropertyValue()
     wxPGProperty* prop = GetSelectedProperty();
 
     if ( !prop )
-        return wxNullVariant;
+        return wxVariant();
 
     wxTextCtrl* tc = GetEditorTextCtrl();
     wxVariant value = prop->GetValue();
@@ -3871,7 +3864,7 @@ wxPropertyGrid::GetUnspecifiedValueText( int argFlags ) const
          !(argFlags & wxPG_EDITABLE_VALUE) )
         return ua.GetText();
 
-    return wxEmptyString;
+    return wxString();
 }
 
 // -----------------------------------------------------------------------
@@ -4128,9 +4121,9 @@ bool wxPropertyGrid::DoSelectProperty( wxPGProperty* p, unsigned int flags )
         m_pState->DoSetSelection(p);
 
         // Redraw unselected
-        for ( unsigned int i=0; i<prevSelection.size(); i++ )
+        for( wxPGProperty* selProp : prevSelection )
         {
-            DrawItem(prevSelection[i]);
+            DrawItem(selProp);
         }
 
         //
@@ -4347,7 +4340,7 @@ bool wxPropertyGrid::DoSelectProperty( wxPGProperty* p, unsigned int flags )
             {
                 // Clear help box - but only if it was written
                 // by us at previous time.
-                statusbar->SetStatusText(wxEmptyString);
+                statusbar->SetStatusText(wxString());
                 m_iFlags &= ~(wxPG_FL_STRING_IN_STATUSBAR);
             }
         }
@@ -4509,9 +4502,8 @@ bool wxPropertyGrid::DoHideProperty( wxPGProperty* p, bool hide, int flags )
         return m_pState->DoHideProperty(p, hide, flags);
 
     wxArrayPGProperty selection = m_pState->m_selection;  // Must use a copy
-    for ( unsigned int i=0; i<selection.size(); i++ )
+    for( wxPGProperty* selected: selection )
     {
-        wxPGProperty* selected = selection[i];
         if ( selected == p || selected->IsSomeParent(p) )
         {
             if ( !DoRemoveFromSelection(p, flags) )
@@ -5101,7 +5093,7 @@ bool wxPropertyGrid::HandleMouseMove( int x, unsigned int y,
                             tipString = m_propHover->GetValueAsString();
                             if ( GetColumnCount() <= 2 )
                             {
-                                wxString unitsString = m_propHover->GetAttribute(wxPG_ATTR_UNITS, wxEmptyString);
+                                wxString unitsString = m_propHover->GetAttribute(wxPG_ATTR_UNITS, wxString());
                                 if ( !unitsString.empty() )
                                     tipString = wxString::Format(wxS("%s %s"), tipString, unitsString );
                             }
@@ -5121,12 +5113,12 @@ bool wxPropertyGrid::HandleMouseMove( int x, unsigned int y,
                     }
                     else
                     {
-                        SetToolTip(wxEmptyString);
+                        SetToolTip(wxString());
                     }
                 }
                 else
                 {
-                    SetToolTip(wxEmptyString);
+                    SetToolTip(wxString());
                 }
             }
         }
@@ -6037,9 +6029,9 @@ void wxPropertyGrid::HandleFocusChange( wxWindow* newFocused )
         if ( m_iFlags & wxPG_FL_INITIALIZED )
         {
             const wxArrayPGProperty& sel = GetSelectedProperties();
-            for ( size_t i = 0; i < sel.size(); i++ )
+            for( wxPGProperty* selProp : sel )
             {
-                DrawItem(sel[i]);
+                DrawItem(selProp);
             }
         }
     }
@@ -6098,9 +6090,7 @@ wxPGEditor* wxPropertyGrid::DoRegisterEditorClass( wxPGEditor* editorClass,
     if ( !noDefCheck && wxPGGlobalVars->m_mapEditorClasses.empty() )
         RegisterDefaultEditors();
 
-    wxString name = editorName;
-    if ( name.empty() )
-        name = editorClass->GetName();
+    wxString name = editorName.empty() ? editorClass->GetName() : editorName;
 
     // Existing editor under this name?
     wxPGHashMapS2P::iterator vt_it = wxPGGlobalVars->m_mapEditorClasses.find(name);
@@ -6512,10 +6502,8 @@ wxPGChoices wxPropertyGridPopulator::ParseChoices( const wxString& choicesString
             int state = 0;
             bool labelValid = false;
 
-            for (wxString::const_iterator it = choicesString.begin(); it != choicesString.end(); ++it )
+            for ( wxUniChar c : choicesString )
             {
-                wxUniChar c = *it;
-
                 if ( state != 1 )
                 {
                     if ( c == wxS('"') )

@@ -80,8 +80,8 @@ class wxSampleMultiButtonEditor : public wxPGTextCtrlEditor
 {
     wxDECLARE_DYNAMIC_CLASS(wxSampleMultiButtonEditor);
 public:
-    wxSampleMultiButtonEditor() {}
-    virtual ~wxSampleMultiButtonEditor() {}
+    wxSampleMultiButtonEditor() = default;
+    virtual ~wxSampleMultiButtonEditor() = default;
 
     virtual wxPGWindowList CreateControls( wxPropertyGrid* propGrid,
                                            wxPGProperty* property,
@@ -219,11 +219,9 @@ wxVectorProperty::wxVectorProperty( const wxString& label,
     AddPrivateChild( new wxFloatProperty("Z",wxPG_LABEL,value.z) );
 }
 
-wxVectorProperty::~wxVectorProperty() { }
-
 void wxVectorProperty::RefreshChildren()
 {
-    if ( !GetChildCount() ) return;
+    if ( !HasAnyChild() ) return;
     const wxVector3f& vector = wxVector3fRefFromVariant(m_value);
     Item(0)->SetValue( vector.x );
     Item(1)->SetValue( vector.y );
@@ -270,11 +268,9 @@ wxTriangleProperty::wxTriangleProperty( const wxString& label,
     AddPrivateChild( new wxVectorProperty("C",wxPG_LABEL,value.c) );
 }
 
-wxTriangleProperty::~wxTriangleProperty() { }
-
 void wxTriangleProperty::RefreshChildren()
 {
-    if ( !GetChildCount() ) return;
+    if ( !HasAnyChild() ) return;
     const wxTriangle& triangle = wxTriangleRefFromVariant(m_value);
     Item(0)->SetValue( WXVARIANT(triangle.a) );
     Item(1)->SetValue( WXVARIANT(triangle.b) );
@@ -950,7 +946,6 @@ static const wxString _fs_windowstyle_labels[] = {
     "wxSUNKEN_BORDER",
     "wxRAISED_BORDER",
     "wxNO_BORDER",
-    "wxTRANSPARENT_WINDOW",
     "wxTAB_TRAVERSAL",
     "wxWANTS_CHARS",
     "wxVSCROLL",
@@ -965,7 +960,6 @@ static const long _fs_windowstyle_values[] = {
     wxSUNKEN_BORDER,
     wxRAISED_BORDER,
     wxNO_BORDER,
-    wxTRANSPARENT_WINDOW,
     wxTAB_TRAVERSAL,
     wxWANTS_CHARS,
     wxVSCROLL,
@@ -2196,7 +2190,7 @@ void FormMain::OnInsertPropClick( wxCommandEvent& WXUNUSED(event) )
 {
     wxString propLabel;
 
-    if ( !m_pPropGridManager->GetGrid()->GetRoot()->GetChildCount() )
+    if ( !m_pPropGridManager->GetGrid()->GetRoot()->HasAnyChild() )
     {
         wxMessageBox("No items to relate - first add some with Append.");
         return;
@@ -2262,7 +2256,7 @@ void FormMain::OnInsertCatClick( wxCommandEvent& WXUNUSED(event) )
 {
     wxString propLabel;
 
-    if ( !m_pPropGridManager->GetGrid()->GetRoot()->GetChildCount() )
+    if ( !m_pPropGridManager->GetGrid()->GetRoot()->HasAnyChild() )
     {
         wxMessageBox("No items to relate - first add some with Append.");
         return;
@@ -2307,7 +2301,7 @@ void FormMain::OnDelPropRClick( wxCommandEvent& WXUNUSED(event) )
 
     for (;;)
     {
-        if ( p->GetChildCount() == 0 )
+        if ( !p->HasAnyChild() )
             break;
 
         unsigned int n = static_cast<unsigned int>(rand()) % p->GetChildCount();
@@ -2713,15 +2707,11 @@ void FormMain::OnAbout(wxCommandEvent& WXUNUSED(event))
 
     wxString msg;
     msg.Printf( "wxPropertyGrid Sample"
-#if wxUSE_UNICODE
   #if defined(wxUSE_UNICODE_UTF8) && wxUSE_UNICODE_UTF8
                 " <utf-8>"
   #else
                 " <unicode>"
   #endif
-#else
-                " <ansi>"
-#endif
 #ifdef __WXDEBUG__
                 " <debug>"
 #else

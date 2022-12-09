@@ -523,11 +523,17 @@ public:
 protected:
     virtual void DoDrawText( const wxString &str, wxDouble x, wxDouble y ) override;
 
-    void Init(cairo_t *context);
+    void Init(cairo_t *context, bool storeInitClip = false);
 
     enum ApplyTransformMode { Apply_directly, Apply_scaled_dev_origin, Apply_scaled_dev_origin_only };
     void ApplyTransformFromDC(const wxDC& dc, ApplyTransformMode mode = Apply_directly);
-
+#ifdef __WXMSW__
+    static wxPoint MSWAdjustHdcOrigin(HDC hdc);
+#endif // __WXMSW__
+#ifdef __WXMAC__
+    static wxPoint MacAdjustCgContextOrigin(CGContextRef cg);
+#endif // __WXMAC__
+    
 #ifdef __WXQT__
     QPainter* m_qtPainter;
     QImage* m_qtImage;
@@ -578,11 +584,19 @@ protected:
 #endif // __WXGTK3__
 #endif // __WXGTK__
 
+#ifdef __WXMAC__
+    CGContextRef m_cgContext;
+#endif // __WXMAC__
+    
 private:
     cairo_t* m_context;
     cairo_matrix_t m_internalTransform;
 
     wxVector<float> m_layerOpacities;
+
+    bool m_initClipStored;
+    double m_initClipX1, m_initClipY1, m_initClipX2, m_initClipY2;
+    cairo_matrix_t m_initClipTransform;
 
     wxDECLARE_NO_COPY_CLASS(wxCairoContext);
 };
@@ -1991,7 +2005,7 @@ wxCairoContext::wxCairoContext( wxGraphicsRenderer* renderer, const wxPrinterDC&
 #elif defined(__WXGTK__)
     const wxDCImpl *impl = dc.GetImpl();
     cairo_t* cr = static_cast<cairo_t*>(impl->GetCairoContext());
-    Init(cr ? cairo_reference(cr) : nullptr);
+    Init(cr ? cairo_reference(cr) : nullptr, true);
 
     wxSize sz = dc.GetSize();
     m_width = sz.x;
@@ -2019,9 +2033,13 @@ wxCairoContext::wxCairoContext( wxGraphicsRenderer* renderer, const wxWindowDC& 
 #ifdef __WXMSW__
     HDC hdc = (HDC)dc.GetHDC();
     m_mswStateSavedDC = ::SaveDC(hdc);
+    // Cairo doesn't work with HDC having negative x- or y-coordinate of the origin of the clipping region
+    // so in such case we need to convert the origin to the offset added the device coordinates.
+    wxPoint surfOffs = MSWAdjustHdcOrigin(hdc);
     m_mswSurface = cairo_win32_surface_create(hdc);
+    cairo_surface_set_device_offset(m_mswSurface, surfOffs.x, surfOffs.y);
     Init( cairo_create(m_mswSurface) );
-    // We don't set HDC origin at MSW level in wxDC because this limits it to
+    // We don't set dev origin at MSW HDC level in wxDC because this limits it to
     // 2^27 range and we prefer to handle it ourselves to allow using the full
     // 2^32 range of int coordinates, but we need to let Cairo know about the
     // origin shift by storing it as an internal transformation
@@ -2031,10 +2049,10 @@ wxCairoContext::wxCairoContext( wxGraphicsRenderer* renderer, const wxWindowDC& 
 
 #ifdef __WXGTK3__
     cairo_t* cr = static_cast<cairo_t*>(dc.GetImpl()->GetCairoContext());
-    Init(cr ? cairo_reference(cr) : nullptr);
+    Init(cr ? cairo_reference(cr) : nullptr, true);
 #elif defined __WXGTK__
     const wxGTKDCImpl* impldc = static_cast<const wxGTKDCImpl*>(dc.GetImpl());
-    Init( gdk_cairo_create( impldc->GetGDKWindow() ) );
+    Init( gdk_cairo_create( impldc->GetGDKWindow() ), true);
 
     // Transfer transformation settings from source DC to Cairo context on our own.
     ApplyTransformFromDC(dc);
@@ -2043,10 +2061,15 @@ wxCairoContext::wxCairoContext( wxGraphicsRenderer* renderer, const wxWindowDC& 
 #ifdef __WXX11__
     cairo_t* cr = static_cast<cairo_t*>(dc.GetImpl()->GetCairoContext());
     if ( cr )
-        Init(cairo_reference(cr));
+        Init(cairo_reference(cr), true);
 #elif defined(__WXMAC__)
-    CGContextRef cgcontext = (CGContextRef)dc.GetWindow()->MacGetCGContextRef();
-    cairo_surface_t* surface = cairo_quartz_surface_create_for_cg_context(cgcontext, width, height);
+    m_cgContext = (CGContextRef)dc.GetWindow()->MacGetCGContextRef();
+    CGContextSaveGState(m_cgContext);
+    // Cairo surface works properly if origin of the clipping region of CGContext is (0,0)
+    // so if it's not the cae we need to move it to (0,0) and apply corrective offset to the device coordinates.
+    wxPoint surfOffs = MacAdjustCgContextOrigin(m_cgContext);
+    cairo_surface_t* surface = cairo_quartz_surface_create_for_cg_context(m_cgContext, width, height);
+    cairo_surface_set_device_offset(surface, surfOffs.x, surfOffs.y);
     Init( cairo_create( surface ) );
     cairo_surface_destroy( surface );
 #endif
@@ -2190,27 +2213,9 @@ wxCairoContext::wxCairoContext( wxGraphicsRenderer* renderer, const wxMemoryDC& 
     // Fallback if Cairo surface hasn't been created from bitmap data.
     if( !hasBitmap )
     {
-        // When x- or y-coordinate of DC origin > 0 then surface
-        // created from DC is not fully operational (for some Cairo
-        // operations memory access violation errors occur - see Cairo
-        // bug 96482) so in this case we would need to pass non-transformed
-        // DC to Cairo and to apply original DC transformation to the Cairo
-        // context operations on our own.
-        // Bug 96482 was fixed in Cairo 1.15.12 so this workaround needs
-        // to be applied only for older Cairo versions.
-        if ( cairo_version() < CAIRO_VERSION_ENCODE(1, 15, 12) )
-        {
-            wxCoord orgX, orgY;
-            dc.GetDeviceOrigin(&orgX, &orgY);
-            if ( orgX > 0 || orgY > 0 )
-            {
-                ::SetViewportOrgEx(hdc, 0, 0, nullptr);
-                ::SetViewportExtEx(hdc, 1, 1, nullptr);
-                ::SetWindowOrgEx(hdc, 0, 0, nullptr);
-                ::SetWindowExtEx(hdc, 1, 1, nullptr);
-                adjustTransformFromDC = true;
-            }
-        }
+        // Cairo doesn't work with HDC having negative x- or y-coordinate of the origin of the clipping region
+        // so in such case we need to convert the origin to the offset added the device coordinates.
+        wxPoint surfOffs = MSWAdjustHdcOrigin(hdc);
 
 #if CAIRO_VERSION >= CAIRO_VERSION_ENCODE(1, 15, 4)
         if ( cairo_version() >= CAIRO_VERSION_ENCODE(1, 15, 4) )
@@ -2225,6 +2230,7 @@ wxCairoContext::wxCairoContext( wxGraphicsRenderer* renderer, const wxMemoryDC& 
         }
         wxASSERT_MSG( cairo_surface_status(m_mswSurface) == CAIRO_STATUS_SUCCESS,
                       wxS("wxCairoContext ctor - Error creating Cairo surface") );
+        cairo_surface_set_device_offset(m_mswSurface, surfOffs.x, surfOffs.y);
     }
 
     Init( cairo_create(m_mswSurface) );
@@ -2248,10 +2254,10 @@ wxCairoContext::wxCairoContext( wxGraphicsRenderer* renderer, const wxMemoryDC& 
 
 #ifdef __WXGTK3__
     cairo_t* cr = static_cast<cairo_t*>(dc.GetImpl()->GetCairoContext());
-    Init(cr ? cairo_reference(cr) : nullptr);
+    Init(cr ? cairo_reference(cr) : nullptr, true);
 #elif defined __WXGTK__
     const wxGTKDCImpl* impldc = static_cast<const wxGTKDCImpl*>(dc.GetImpl());
-    Init( gdk_cairo_create( impldc->GetGDKWindow() ) );
+    Init( gdk_cairo_create( impldc->GetGDKWindow() ), true);
 
     // Transfer transformation settings from source DC to Cairo context on our own.
     ApplyTransformFromDC(dc);
@@ -2260,12 +2266,17 @@ wxCairoContext::wxCairoContext( wxGraphicsRenderer* renderer, const wxMemoryDC& 
 #ifdef __WXX11__
     cairo_t* cr = static_cast<cairo_t*>(dc.GetImpl()->GetCairoContext());
     if ( cr )
-        Init(cairo_reference(cr));
+        Init(cairo_reference(cr), true);
 #endif
 
 #ifdef __WXMAC__
-    CGContextRef cgcontext = (CGContextRef)dc.GetGraphicsContext()->GetNativeContext();
-    cairo_surface_t* surface = cairo_quartz_surface_create_for_cg_context(cgcontext, width, height);
+    m_cgContext = (CGContextRef)dc.GetGraphicsContext()->GetNativeContext();
+    CGContextSaveGState(m_cgContext);
+    // Cairo surface works properly if origin of the clipping region of CGContext is (0,0)
+    // so if it's not the cae we need to move it to (0,0) and apply corrective offset to the device coordinates.
+    wxPoint surfOffs = MacAdjustCgContextOrigin(m_cgContext);
+    cairo_surface_t* surface = cairo_quartz_surface_create_for_cg_context(m_cgContext, width, height);
+    cairo_surface_set_device_offset(surface, surfOffs.x, surfOffs.y);
     Init( cairo_create( surface ) );
     cairo_surface_destroy( surface );
 #endif
@@ -2288,7 +2299,7 @@ wxCairoContext::wxCairoContext( wxGraphicsRenderer* renderer, const wxMemoryDC& 
 wxCairoContext::wxCairoContext( wxGraphicsRenderer* renderer, GdkWindow *window )
 : wxGraphicsContext(renderer)
 {
-    Init( gdk_cairo_create( window ) );
+    Init( gdk_cairo_create( window ), true);
 
 #ifdef __WXGTK3__
     m_width = gdk_window_get_width(window);
@@ -2332,53 +2343,12 @@ wxCairoContext::wxCairoContext( wxGraphicsRenderer* renderer, HDC handle )
 {
     m_mswStateSavedDC = ::SaveDC(handle);
 
-    bool adjustTransformFromDC = false; // To signal that we have to transfer
-                                        // transformation settings from source
-                                        // wxDC to Cairo context on our own.
-    cairo_matrix_t dcTransform;
-    cairo_matrix_init_identity(&dcTransform);
-    // When x- or y-coordinate of DC origin > 0 then surface
-    // created from DC is not fully operational (for some Cairo
-    // operations memory access violation errors occur - see Cairo
-    // bug 96482) so in this case we would need to pass non-transformed
-    // DC to Cairo and to apply original DC transformation to the Cairo
-    // context operations on our own.
-    if ( cairo_version() < CAIRO_VERSION_ENCODE(1, 15, 12) )
-    {
-        POINT devOrg;
-        ::GetViewportOrgEx(handle, &devOrg);
-        if ( devOrg.x > 0 || devOrg.y > 0 )
-        {
-            SIZE devExt;
-            ::GetViewportExtEx(handle, &devExt);
-            POINT logOrg;
-            ::GetWindowOrgEx(handle, &logOrg);
-            SIZE logExt;
-            ::GetWindowExtEx(handle, &logExt);
-
-            double sx = (double)devExt.cx / logExt.cx;
-            double sy = (double)devExt.cy / logExt.cy;
-
-            cairo_matrix_translate(&dcTransform, devOrg.x, devOrg.y);
-            cairo_matrix_scale(&dcTransform, sx, sy);
-            cairo_matrix_translate(&dcTransform, -logOrg.x, -logOrg.y);
-
-            ::SetViewportOrgEx(handle, 0, 0, nullptr);
-            ::SetViewportExtEx(handle, 1, 1, nullptr);
-            ::SetWindowOrgEx(handle, 0, 0, nullptr);
-            ::SetWindowExtEx(handle, 1, 1, nullptr);
-
-            adjustTransformFromDC = true;
-        }
-    }
+    // Cairo doesn't work with HDC having negative x- or y-coordinate of the origin of the clipping region
+    // so in such case we need to convert the origin to the offset added the device coordinates.
+    wxPoint surfOffs = MSWAdjustHdcOrigin(handle);
     m_mswSurface = cairo_win32_surface_create(handle);
+    cairo_surface_set_device_offset(m_mswSurface, surfOffs.x, surfOffs.y);
     Init( cairo_create(m_mswSurface) );
-    if ( adjustTransformFromDC )
-    {
-        cairo_matrix_multiply(&m_internalTransform,
-                              &dcTransform, &m_internalTransform);
-        cairo_set_matrix(m_context, &m_internalTransform);
-    }
 
     m_width = 0;
     m_height = 0;
@@ -2430,7 +2400,11 @@ wxCairoContext::wxCairoContext( wxGraphicsRenderer* renderer, cairo_t *context )
     m_mswSurface = nullptr;
     m_mswStateSavedDC = 0;
 #endif // __WXMSW__
-    Init( cairo_reference(context) );
+#ifdef __WXMAC__
+    m_cgContext = nullptr;
+#endif // __WXMAC__
+    
+    Init( cairo_reference(context), true );
     m_width = 0;
     m_height = 0;
 }
@@ -2455,7 +2429,7 @@ wxCairoContext::wxCairoContext( wxGraphicsRenderer* renderer, wxWindow *window)
 
     wxASSERT_MSG( window->m_wxwindow, wxT("wxCairoContext needs a widget") );
 
-    Init(gdk_cairo_create(window->GTKGetDrawingWindow()));
+    Init(gdk_cairo_create(window->GTKGetDrawingWindow()), true);
 
     wxSize sz = window->GetSize();
     m_width = sz.x;
@@ -2471,6 +2445,10 @@ wxCairoContext::wxCairoContext( wxGraphicsRenderer* renderer, wxWindow *window)
     m_width = sz.x;
     m_height = sz.y;
 #endif //  __WXMSW__
+
+#ifdef __WXMAC__
+    m_cgContext = nullptr;
+#endif // __WXMAC__
 
 #ifdef __WXQT__
     // direct m_qtSurface is not being used yet (this needs cairo qt surface)
@@ -2489,6 +2467,9 @@ wxCairoContext::wxCairoContext(wxGraphicsRenderer* renderer) :
     m_mswSurface = nullptr;
     m_mswStateSavedDC = 0;
 #endif // __WXMSW__
+#ifdef __WXMAC__
+    m_cgContext = nullptr;
+#endif // __WXMAC__
     Init(nullptr);
     m_width = 0;
     m_height = 0;
@@ -2513,6 +2494,12 @@ wxCairoContext::~wxCairoContext()
             ::RestoreDC(hdc, m_mswStateSavedDC);
     }
 #endif
+#ifdef __WXMAC__
+    if ( m_cgContext != nullptr )
+    {
+        CGContextRestoreGState(m_cgContext);
+    }
+#endif // __WXMAC__
 #ifdef __WXQT__
     if ( m_qtPainter != nullptr )
     {
@@ -2526,7 +2513,7 @@ wxCairoContext::~wxCairoContext()
 
 }
 
-void wxCairoContext::Init(cairo_t *context)
+void wxCairoContext::Init(cairo_t *context, bool storeInitClip)
 {
 #ifdef __WXGTK3__
     // Attempt to find the system font scaling parameter (e.g. "Fonts->Scaling
@@ -2537,6 +2524,7 @@ void wxCairoContext::Init(cairo_t *context)
 #endif
 
     m_context = context;
+    m_initClipStored = false;
     if ( m_context )
     {
         // Store initial transformation settings
@@ -2545,6 +2533,17 @@ void wxCairoContext::Init(cairo_t *context)
 
         PushState();
         PushState();
+        if (storeInitClip)
+        {
+#if CAIRO_VERSION >= CAIRO_VERSION_ENCODE(1, 4, 0)
+            if ( cairo_version() >= CAIRO_VERSION_ENCODE(1, 4, 0) )
+            {
+                cairo_clip_extents(m_context, &m_initClipX1, &m_initClipY1, &m_initClipX2, &m_initClipY2);
+                cairo_get_matrix(m_context, &m_initClipTransform);
+                m_initClipStored = true;
+            }
+#endif // Cairo >= 1.4
+        }
     }
     else
     {
@@ -2585,6 +2584,63 @@ void wxCairoContext::ApplyTransformFromDC(const wxDC& dc, ApplyTransformMode mod
     cairo_set_matrix(m_context, &m_internalTransform);
 }
 
+#ifdef __WXMSW__
+/* static */
+wxPoint wxCairoContext::MSWAdjustHdcOrigin(HDC hdc)
+{
+    // For Cairo < 1.15.12 surface created from HDC having negative x- or y-coordinate of the origin
+    // of the clipping region is not fully operational (see Cairo bug https://bugs.freedesktop.org/show_bug.cgi?id=96482)
+    // - for some operations memory access violation errors occur.
+    // For Cairo >= 1.15.2 HDC having negative x- or y-coordinate of the origin of the clipping region
+    // is not supported - see https://gitlab.freedesktop.org/cairo/cairo/-/commit/4d07b57c168b88019a5510eaa7e9467149c53f12
+    // So for such HDC we need to pass non-transformed HDC to Cairo surface and to apply initial origin of the clipping
+    // region as an offset added to the device coordinates when drawing to surface.
+
+    wxPoint offs(0, 0);
+
+    RECT clipRect;
+    ::GetClipBox(hdc, &clipRect);
+    if ( clipRect.left < 0 || clipRect.top < 0 )
+    {
+        POINT viewOrg;
+        ::GetViewportOrgEx(hdc, &viewOrg);
+        POINT windOrg;
+        ::GetWindowOrgEx(hdc, &windOrg);
+        if ( clipRect.left < 0 )
+        {
+            viewOrg.x = 0;
+            windOrg.x = 0;
+            offs.x = -clipRect.left;
+        }
+        if ( clipRect.top < 0 )
+        {
+            viewOrg.y = 0;
+            windOrg.y = 0;
+            offs.y = -clipRect.top;
+        }
+        ::SetViewportOrgEx(hdc, viewOrg.x,viewOrg.y, nullptr);
+        ::SetWindowOrgEx(hdc, windOrg.x, windOrg.y, nullptr);
+    }
+
+    return offs;
+}
+#endif // __WXMSW__
+
+#ifdef __WXMAC__
+/* static */
+wxPoint wxCairoContext::MacAdjustCgContextOrigin(CGContextRef cg)
+{
+    // Cairo surface works properly if origin of the clipping region of CGContext is (0,0)
+    // so if it's not the case we need to apply a transformation to move it to (0,0).
+    // This shift needs to be applied as an offset added to the device coordinates when drawing to surface.
+
+    CGRect clip = CGContextGetClipBoundingBox(cg);
+    CGAffineTransform cgTransform = CGAffineTransformMake(1, 0, 0, 1, clip.origin.x, clip.origin.y);
+    CGContextConcatCTM(cg, cgTransform);
+    return wxPoint(-clip.origin.x, -clip.origin.y);
+}
+#endif // __WXMAC__
+
 void wxCairoContext::Clip( const wxRegion& region )
 {
     // Create a path with all the rectangles in the region
@@ -2623,6 +2679,26 @@ void wxCairoContext::Clip( wxDouble x, wxDouble y, wxDouble w, wxDouble h )
 void wxCairoContext::ResetClip()
 {
     cairo_reset_clip(m_context);
+
+    if (m_initClipStored)
+    {
+        // If we work with shared context (using cairo_reference()) or with context
+        // created from GDkWindow we should restore initial clipping area instead of
+        // just reset it entirely.
+        // 1. Save current CTM and path
+        cairo_matrix_t curTransform;
+        cairo_get_matrix(m_context, &curTransform);
+        cairo_path_t* curPath = cairo_copy_path(m_context);
+        // 2. Clear current path and create path for initial clipping region (with initial CTM)
+        cairo_set_matrix(m_context, &m_initClipTransform);
+        cairo_new_path(m_context);
+        cairo_rectangle(m_context, m_initClipX1, m_initClipY1, m_initClipX2-m_initClipX1, m_initClipY2-m_initClipY1);
+        cairo_clip(m_context);
+        // 3. Restore current CTM and path
+        cairo_set_matrix(m_context, &curTransform);
+        cairo_append_path(m_context, curPath);
+        cairo_path_destroy(curPath);
+    }
 }
 
 void wxCairoContext::GetClipBox(wxDouble* x, wxDouble* y, wxDouble* w, wxDouble* h)

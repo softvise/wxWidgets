@@ -1547,30 +1547,10 @@ wxTreeItemId wxTreeCtrl::DoInsertAfter(const wxTreeItemId& parent,
     tvIns.item.lParam = (LPARAM)param;
     tvIns.item.mask = mask;
 
-    // apparently some Windows versions (2000 and XP are reported to do this)
-    // sometimes don't refresh the tree after adding the first child and so we
-    // need this to make the "[+]" appear
-    //
-    // don't use this hack below for the children of hidden root nor for modern
-    // MSW versions as it would just unnecessarily slow down the item insertion
-    // at best
-    const bool refreshFirstChild =
-        (wxGetWinVersion() < wxWinVersion_Vista) &&
-            !IsHiddenRoot(parent) &&
-                !TreeView_GetChild(GetHwnd(), HITEM(parent));
-
     HTREEITEM id = TreeView_InsertItem(GetHwnd(), &tvIns);
     if ( id == 0 )
     {
         wxLogLastError(wxT("TreeView_InsertItem"));
-    }
-
-    if ( refreshFirstChild )
-    {
-        TVGetItemRectParam param2;
-
-        wxTreeView_GetItemRect(GetHwnd(), HITEM(parent), param2, FALSE);
-        ::InvalidateRect(GetHwnd(), &param2.rect, FALSE);
     }
 
     // associate the application tree item with Win32 tree item handle
@@ -2070,10 +2050,22 @@ wxTextCtrl *wxTreeCtrl::EditLabel(const wxTreeItemId& item,
 // End label editing, optionally cancelling the edit
 void wxTreeCtrl::DoEndEditLabel(bool discardChanges)
 {
-    if ( !TreeView_EndEditLabelNow(GetHwnd(), discardChanges) )
-        wxLogLastError(wxS("TreeView_EndEditLabelNow()"));
-
+    // Delete m_textCtrl before sending TVM_ENDEDITLABELNOW to the control
+    // because otherwise we'd try to end editing the label again when we get
+    // EN_KILLFOCUS from the EDIT control which will get destroyed as part of
+    // the default handling of this message -- so reset m_textCtrl to prevent
+    // this from happening, as it's clearly unwanted, even if it doesn't seem
+    // to result in any actual problems.
     DeleteTextCtrl();
+
+    // Ignore the return value here: we may get FALSE here if edit control had
+    // been already dismissed, which happens when we're called from the above
+    // mentioned EN_KILLFOCUS handler when the focus loss is due to clicking in
+    // the tree control itself, as the tree dismisses the editor automatically
+    // then. But we still have to call this because the tree does not dismiss
+    // it when clicking outside the tree and it's simpler to just always do it
+    // than to distinguish between the two cases.
+    (void)TreeView_EndEditLabelNow(GetHwnd(), discardChanges);
 }
 
 wxTreeItemId wxTreeCtrl::DoTreeHitTest(const wxPoint& point, int& flags) const

@@ -29,13 +29,8 @@ library:
 @beginDefList
 @itemdef{wxUSE_STL, Container classes and wxString are implemented using
     standard classes and provide the same standard API.}
-@itemdef{wxUSE_STD_STRING, wxString is implemented using std::[w]string and can
-    be constructed from it (but provides wxWidgets-compatible API, in
-    particular is implicitly convertible to @c char* and not std::[w]string).}
-@itemdef{wxUSE_STD_IOSTREAM, Standard C++ classes are used instead of or in
-    addition to wx stream classes.}
-@itemdef{wxUSE_UNICODE, Compiled with Unicode support (default in wxWidgets
-    3.0, non-Unicode build is deprecated and will be removed in the future).}
+@itemdef{wxUSE_UNICODE, Always defined as 1 in wxWidgets 3.3 and later, only
+    exists for compatibility.}
 @itemdef{wxUSE_UNICODE_WCHAR, wxString uses wchar_t buffer for internal storage
     (default).}
 @itemdef{wxUSE_UNICODE_UTF8, wxString uses UTF-8 for internal storage (mostly
@@ -84,7 +79,6 @@ library:
 @itemdef{wxUSE_COLOURPICKERCTRL, Use wxColourPickerCtrl class.}
 @itemdef{wxUSE_COMBOBOX, Use wxComboBox class.}
 @itemdef{wxUSE_COMBOCTRL, Use wxComboCtrl class.}
-@itemdef{wxUSE_COMPILER_TLS, Can be set to 0 to prevent using compile thread-specific variables support.}
 @itemdef{wxUSE_CONFIG, Use wxConfig and related classes.}
 @itemdef{wxUSE_CONFIG_NATIVE, When enabled use native OS configuration instead of the wxFileConfig class.}
 @itemdef{wxUSE_CONSOLE_EVENTLOOP, Enable event loop in console programs.}

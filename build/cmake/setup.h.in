@@ -18,7 +18,7 @@
 #cmakedefine wxINSTALL_PREFIX "@wxINSTALL_PREFIX@"
 
 /* Define if ssize_t type is available.  */
-#cmakedefine HAVE_SSIZE_T
+#cmakedefine HAVE_SSIZE_T 1
 
 /* Define if you have the ANSI C header files.  */
 #cmakedefine STDC_HEADERS 1
@@ -148,11 +148,6 @@
 
 
 
-#ifndef wxUSE_UNICODE
-    #cmakedefine01 wxUSE_UNICODE
-#endif
-
-
 #cmakedefine01 wxUSE_EXCEPTIONS
 
 #cmakedefine01 wxUSE_EXTENDED_RTTI
@@ -173,21 +168,12 @@
 
 #cmakedefine01 wxUSE_PRINTF_POS_PARAMS
 
-#cmakedefine01 wxUSE_COMPILER_TLS
-
 
 #cmakedefine01 wxUSE_STL
 
-#cmakedefine01 wxUSE_STD_DEFAULT
-
-#define wxUSE_STD_CONTAINERS_COMPATIBLY wxUSE_STD_DEFAULT
-
 #cmakedefine01 wxUSE_STD_CONTAINERS
 
-#define wxUSE_STD_IOSTREAM  wxUSE_STD_DEFAULT
-
-#define wxUSE_STD_STRING  wxUSE_STD_DEFAULT
-
+#cmakedefine01 wxUSE_STD_IOSTREAM
 #define wxUSE_STD_STRING_CONV_IN_WXSTRING wxUSE_STL
 
 
@@ -869,9 +855,6 @@
 
 /* Define if fsync() is available */
 #cmakedefine HAVE_FSYNC 1
-
-/* Define if round() is available */
-#cmakedefine HAVE_ROUND 1
 
 /* Define if you have ftime() */
 #cmakedefine HAVE_FTIME 1

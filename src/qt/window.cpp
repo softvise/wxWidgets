@@ -180,7 +180,7 @@ void wxQtInternalScrollBar::sliderReleased()
 }
 
 #if wxUSE_ACCEL || defined( Q_MOC_RUN )
-class wxQtShortcutHandler : public QObject, public wxQtSignalHandler< wxWindowQt >
+class wxQtShortcutHandler : public QObject, public wxQtSignalHandler
 {
 
 public:
@@ -191,7 +191,7 @@ public:
 };
 
 wxQtShortcutHandler::wxQtShortcutHandler( wxWindowQt *window )
-    : wxQtSignalHandler< wxWindowQt >( window )
+    : wxQtSignalHandler( window )
 {
 }
 
@@ -199,7 +199,7 @@ void wxQtShortcutHandler::activated()
 {
     int command = sender()->property("wxQt_Command").toInt();
 
-    GetHandler()->QtHandleShortcut( command );
+    static_cast<wxWindowQt*>(GetHandler())->QtHandleShortcut( command );
 }
 #endif // wxUSE_ACCEL
 
@@ -419,6 +419,9 @@ void wxWindowQt::PostCreation(bool generic)
 
     GetHandle()->setFont( wxWindowBase::GetFont().GetHandle() );
 
+    if ( !IsThisEnabled() )
+        DoEnable(false);
+
     // The window might have been hidden before Create() and it needs to remain
     // hidden in this case, so do it (unfortunately there doesn't seem to be
     // any way to create the window initially hidden with Qt).
@@ -474,7 +477,8 @@ wxString wxWindowQt::GetLabel() const
 
 void wxWindowQt::DoEnable(bool enable)
 {
-    GetHandle()->setEnabled(enable);
+    if ( GetHandle() )
+        GetHandle()->setEnabled(enable);
 }
 
 void wxWindowQt::SetFocus()
@@ -561,11 +565,35 @@ void wxWindowQt::Refresh( bool WXUNUSED( eraseBackground ), const wxRect *rect )
                        GetName(),
                        rect->x, rect->y, rect->width, rect->height);
             widget->update( wxQtConvertRect( *rect ));
+
+            wxWindowList& children = GetChildren();
+            if ( !children.empty() )
+            {
+                wxRect parentRect = *rect;
+                ClientToScreen(&parentRect.x, &parentRect.y);
+
+                for ( auto childWin : children )
+                {
+                    wxRect childRect = childWin->GetScreenRect();
+                    childRect.Intersect(parentRect);
+                    if ( !childRect.IsEmpty() )
+                    {
+                        childWin->ScreenToClient(&childRect.x, &childRect.y);
+                        childWin->RefreshRect(childRect);
+                    }
+                }
+            }
         }
         else
         {
             wxLogTrace(TRACE_QT_WINDOW, wxT("wxWindow::Refresh %s"), GetName());
             widget->update();
+
+            wxWindowList& children = GetChildren();
+            for ( auto childWin : children )
+            {
+                childWin->Refresh();
+            }
         }
     }
 }
@@ -612,6 +640,21 @@ int wxWindowQt::GetCharWidth() const
 void wxWindowQt::DoGetTextExtent(const wxString& string, int *x, int *y, int *descent,
         int *externalLeading, const wxFont *font ) const
 {
+    if ( x )
+        *x = 0;
+    if ( y )
+        *y = 0;
+    if ( descent )
+        *descent = 0;
+    if ( externalLeading )
+        *externalLeading = 0;
+
+    // We can skip computing the string width and height if it is empty, but
+    // not its descent and/or external leading, which still needs to be
+    // returned even for an empty string.
+    if ( string.empty() && !descent && !externalLeading )
+        return;
+
     QFontMetrics fontMetrics( font != nullptr ? font->GetHandle() : GetHandle()->font() );
 
     if ( x != nullptr )
@@ -702,9 +745,10 @@ void wxWindowQt::SetScrollbar( int orientation, int pos, int thumbvisible, int r
     {
         scrollBar->setRange( 0, range - thumbvisible );
         scrollBar->setPageStep( thumbvisible );
-        scrollBar->blockSignals( true );
-        scrollBar->setValue(pos);
-        scrollBar->blockSignals( false );
+        {
+            wxQtEnsureSignalsBlocked blocker(scrollBar);
+            scrollBar->setValue(pos);
+        }
         scrollBar->show();
 
         if ( HasFlag(wxALWAYS_SHOW_SB) && (range == 0) )
@@ -793,7 +837,7 @@ void wxWindowQt::SetWindowStyleFlag( long style )
 
 //    wxMISSING_IMPLEMENTATION( "wxWANTS_CHARS, wxTAB_TRAVERSAL" );
 //    // wxFULL_REPAINT_ON_RESIZE: Qt::WResizeNoErase (marked obsolete)
-//    // wxTRANSPARENT_WINDOW, wxCLIP_CHILDREN: Used in window for
+//    // wxCLIP_CHILDREN: Used in window for
 //    //   performance, apparently not needed.
 //
 //    // wxWANTS_CHARS: Need to reimplement event()
@@ -1387,12 +1431,10 @@ bool wxWindowQt::QtHandleKeyEvent ( QWidget *WXUNUSED( handler ), QKeyEvent *eve
     // TODO: m_x, m_y
     e.m_keyCode = wxQtConvertKeyCode( event->key(), event->modifiers() );
 
-#if wxUSE_UNICODE
     if ( event->text().isEmpty() )
         e.m_uniChar = 0;
     else
         e.m_uniChar = event->text().at( 0 ).unicode();
-#endif // wxUSE_UNICODE
 
     e.m_rawCode = event->nativeVirtualKey();
     e.m_rawFlags = event->nativeModifiers();

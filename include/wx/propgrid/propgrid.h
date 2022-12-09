@@ -760,8 +760,7 @@ public:
     // GetState->GetColumnWidth() immediately after this function returns.
     wxSize FitColumns()
     {
-        wxSize sz = m_pState->DoFitColumns();
-        return sz;
+        return m_pState->DoFitColumns();
     }
 
     // Returns wxWindow that the properties are painted on, and which should
@@ -879,7 +878,7 @@ public:
 
     // Returns true if editor's value was marked modified.
     bool IsEditorsValueModified() const
-        { return  ( m_iFlags & wxPG_FL_VALUE_MODIFIED ) ? true : false; }
+        { return  ( m_iFlags & wxPG_FL_VALUE_MODIFIED ) != 0; }
 
     // Returns information about arbitrary position in the grid.
     // pt - Coordinates in the virtual grid space. You may need to use
@@ -914,7 +913,7 @@ public:
     static wxPGEditor* RegisterEditorClass( wxPGEditor* editor,
                                             bool noDefCheck = false )
     {
-        return DoRegisterEditorClass(editor, wxEmptyString, noDefCheck);
+        return DoRegisterEditorClass(editor, wxString(), noDefCheck);
     }
 
     static wxPGEditor* DoRegisterEditorClass( wxPGEditor* editorClass,
@@ -1137,7 +1136,7 @@ public:
     /////////////////////////////////////////////////////////////////
 
     bool HasVirtualWidth() const
-        { return (m_iFlags & wxPG_FL_HAS_VIRTUAL_WIDTH) ? true : false; }
+        { return (m_iFlags & wxPG_FL_HAS_VIRTUAL_WIDTH) != 0; }
 
     const wxPGCommonValue* GetCommonValue( unsigned int i ) const
     {
@@ -1255,7 +1254,7 @@ public:
 
     long GetInternalFlags() const { return m_iFlags; }
     bool HasInternalFlag( long flag ) const
-        { return (m_iFlags & flag) ? true : false; }
+        { return (m_iFlags & flag) != 0; }
     void SetInternalFlag( long flag ) { m_iFlags |= flag; }
     void ClearInternalFlag( long flag ) { m_iFlags &= ~(flag); }
 
@@ -1294,7 +1293,7 @@ public:
     // wxPGProperty::OnEvent() is not even called in those cases).
     bool WasValueChangedInEvent() const
     {
-        return (m_iFlags & wxPG_FL_VALUE_CHANGE_IN_EVENT) ? true : false;
+        return (m_iFlags & wxPG_FL_VALUE_CHANGE_IN_EVENT) != 0;
     }
 
     // Returns true if given event is from first of an array of buttons

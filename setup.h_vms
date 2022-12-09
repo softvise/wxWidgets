@@ -157,8 +157,6 @@ typedef pid_t GPid;
 
 /* --- start common options --- */
 
-#define wxUSE_COMPILER_TLS 1
-
 #ifndef wxUSE_GUI
     #define wxUSE_GUI            1
 #endif
@@ -220,20 +218,7 @@ typedef pid_t GPid;
 
 #define wxUSE_STL 0
 
-#if defined(__DMC__) \
-        || (defined(_MSC_VER) && _MSC_VER < 1200)
-    #define wxUSE_STD_DEFAULT  0
-#else
-    #define wxUSE_STD_DEFAULT  1
-#endif
-
-#define wxUSE_STD_CONTAINERS_COMPATIBLY wxUSE_STD_DEFAULT
-
-#define wxUSE_STD_CONTAINERS wxUSE_STD_DEFAULT
-
-#define wxUSE_STD_IOSTREAM  wxUSE_STD_DEFAULT
-
-#define wxUSE_STD_STRING  wxUSE_STD_DEFAULT
+#define wxUSE_STD_CONTAINERS wxUSE_STL
 
 #define wxUSE_STD_STRING_CONV_IN_WXSTRING wxUSE_STL
 
@@ -856,11 +841,6 @@ typedef pid_t GPid;
  * Define if you have pthread_cleanup_push/pop()
  */
 #define wxHAVE_PTHREAD_CLEANUP 1
-
-/*
- * Define if compiler has __thread keyword.
- */
-#undef HAVE___THREAD_KEYWORD
 
 /*
  * Define if large (64 bit file offsets) files are supported.

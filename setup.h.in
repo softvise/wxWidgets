@@ -151,11 +151,6 @@
 
 
 
-#ifndef wxUSE_UNICODE
-    #define wxUSE_UNICODE 0
-#endif
-
-
 #define wxUSE_EXCEPTIONS    0
 
 #define wxUSE_EXTENDED_RTTI 0
@@ -176,21 +171,12 @@
 
 #define wxUSE_PRINTF_POS_PARAMS      0
 
-#define wxUSE_COMPILER_TLS 0
-
 
 #define wxUSE_STL 0
 
-#define wxUSE_STD_DEFAULT  0
-
-#define wxUSE_STD_CONTAINERS_COMPATIBLY wxUSE_STD_DEFAULT
-
 #define wxUSE_STD_CONTAINERS 0
 
-#define wxUSE_STD_IOSTREAM  wxUSE_STD_DEFAULT
-
-#define wxUSE_STD_STRING  wxUSE_STD_DEFAULT
-
+#define wxUSE_STD_IOSTREAM  0
 #define wxUSE_STD_STRING_CONV_IN_WXSTRING wxUSE_STL
 
 
@@ -785,10 +771,6 @@
  */
 #undef wxHAVE_PTHREAD_CLEANUP
 /*
- * Define if compiler has __thread keyword.
- */
-#undef HAVE___THREAD_KEYWORD
-/*
  * Define if large (64 bit file offsets) files are supported.
  */
 #undef HAVE_LARGEFILE_SUPPORT
@@ -872,9 +854,6 @@
 
 /* Define if fsync() is available */
 #undef HAVE_FSYNC
-
-/* Define if round() is available */
-#undef HAVE_ROUND
 
 /* Define if you have ftime() */
 #undef HAVE_FTIME

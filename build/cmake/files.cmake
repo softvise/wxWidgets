@@ -28,7 +28,6 @@ set(BASE_UNIX_AND_DARWIN_HDR
     wx/unix/evtloopsrc.h
     wx/unix/pipe.h
     wx/unix/stackwalk.h
-    wx/unix/tls.h
     wx/unix/fswatcher_kqueue.h
 )
 
@@ -461,7 +460,6 @@ set(BASE_CMN_SRC
     src/common/strconv.cpp
     src/common/stream.cpp
     src/common/string.cpp
-    src/common/stringimpl.cpp
     src/common/stringops.cpp
     src/common/strvararg.cpp
     src/common/sysopt.cpp
@@ -612,7 +610,6 @@ set(BASE_CMN_HDR
     wx/strconv.h
     wx/stream.h
     wx/string.h
-    wx/stringimpl.h
     wx/stringops.h
     wx/strvararg.h
     wx/sysopt.h
@@ -986,7 +983,6 @@ set(GUI_CMN_HDR
     wx/generic/msgdlgg.h
     wx/generic/numdlgg.h
     wx/generic/notebook.h
-    wx/generic/panelg.h
     wx/generic/prntdlgg.h
     wx/generic/printps.h
     wx/generic/progdlgg.h
@@ -1810,7 +1806,6 @@ set(MSW_HDR
     wx/msw/ownerdrw.h
     wx/msw/ownerdrawnbutton.h
     wx/msw/palette.h
-    wx/msw/panel.h
     wx/msw/pen.h
     wx/msw/printdlg.h
     wx/msw/printwin.h
@@ -2366,7 +2361,6 @@ set(UNIV_HDR
     wx/univ/menu.h
     wx/univ/menuitem.h
     wx/univ/notebook.h
-    wx/univ/panel.h
     wx/univ/radiobox.h
     wx/univ/radiobut.h
     wx/univ/renderer.h

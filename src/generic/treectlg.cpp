@@ -434,16 +434,19 @@ wxTreeTextCtrl::wxTreeTextCtrl(wxGenericTreeCtrl *owner,
     // corrects position and size for better appearance
 #ifdef __WXMSW__
     rect.x -= 5;
-    rect.width += 10;
 #elif defined(__WXGTK__)
     rect.x -= 5;
-    rect.y -= 2;
-    rect.width  += 8;
-    rect.height += 4;
 #endif // platforms
 
     (void)Create(m_owner, wxID_ANY, m_startValue,
                  rect.GetPosition(), rect.GetSize());
+
+    int w;
+    GetTextExtent(m_startValue, &w, nullptr);
+    const wxSize size(GetSizeFromTextSize(w));
+    rect.y += (rect.height - size.y) / 2;
+    rect.SetSize(size);
+    SetSize(rect);
 
     SelectAll();
 }
@@ -2655,7 +2658,7 @@ void wxGenericTreeCtrl::PaintItem(wxGenericTreeItem *item, wxDC& dc)
                           dc,
                           item->GetX(),
                           item->GetY() +
-                          total_h > state_h ? (total_h-state_h)/2 : 0);
+                          (total_h > state_h ? (total_h-state_h)/2 : 0));
     }
 
     if ( image != NO_IMAGE )
@@ -2666,7 +2669,7 @@ void wxGenericTreeCtrl::PaintItem(wxGenericTreeItem *item, wxDC& dc)
                           dc,
                           item->GetX() + state_w,
                           item->GetY() +
-                          total_h > image_h ? (total_h-image_h)/2 : 0);
+                          (total_h > image_h ? (total_h-image_h)/2 : 0));
     }
 
     dc.SetBackgroundMode(wxBRUSHSTYLE_TRANSPARENT);

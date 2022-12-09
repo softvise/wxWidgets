@@ -19,6 +19,14 @@ Changes in behaviour not resulting in compilation errors
   strongly recommended to change your redrawing logic to avoid using wxClientDC
   instead, as the code using it still won't work with wxGTK/wxOSX.
 
+  You may also choose to globally set the new msw.window.no-composited system
+  option to disable the use of double buffering, but please consider doing it
+  only as a last resort and/or temporary solution, as this _will_ result in
+  flicker and won't be supported at all in the future wxWidgets versions.
+
+- wxMSW doesn't support versions of Microsoft Windows before Windows 7. If you
+  need Windows XP or Vista support, please use wxWidgets 3.2.
+
 - As first mentioned in 3.0 release notes, the value of wxTHREAD_WAIT_DEFAULT,
   used by wxThread::Delete() and Wait() by default, has changed from
   wxTHREAD_WAIT_YIELD to wxTHREAD_WAIT_BLOCK for safety and consistency.
@@ -33,6 +41,21 @@ Changes in behaviour not resulting in compilation errors
   even if the grid is currently too small to show all of them or if there are
   no unfrozen rows/columns remaining.
 
+- Calling wxImageList methods on an invalid wxImageList object now consistently
+  results in assert failures instead of just failing silently. To avoid these
+  asserts, make sure that wxImageList is created with a valid size before
+  operating on it.
+
+- wxTRANSPARENT_WINDOW doesn't do anything and shouldn't be used any more. If
+  you ever used it under MSW (it never did anything in the other ports), you
+  can turn on the native WS_EX_TRANSPARENT extended style if really needed.
+
+- In wxMSW, size passed to wxTextDataObject::SetData() must include the size of
+  the trailing NUL (in bytes, i.e. 2) now, for consistency with GetDataSize().
+  Typically this function shouldn't be used directly as SetText() should be
+  used instead, but if you do use it, you need to update your code to prevent
+  the last character of the data from being chopped.
+
 
 Changes in behaviour which may result in build errors
 -----------------------------------------------------
@@ -41,8 +64,16 @@ Changes in behaviour which may result in build errors
   default, you need to set WXWIN_COMPATIBILITY_3_0 to 1 to enable them. Symbols
   deprecated in 2.8 are not available any longer.
 
+- Building with wxUSE_UNICODE=0 is not supported any longer.
+
 - wxMotif and wxGTK1 ports have been removed, please use wxWidgets 3.2 if you
   still need them.
+
+- Generic wxSearchCtrl doesn't provide methods that make sense only for
+  multiline text controls any longer, for consistency with the other ports.
+
+- wxOnAssert() overload taking wide character file name was removed. If you
+  call it for any reason, please use one of the other overloads instead.
 
 
 3.3.0: (released 2022-??-??)

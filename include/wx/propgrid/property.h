@@ -60,9 +60,8 @@ class WXDLLIMPEXP_PROPGRID wxPGCellRenderer : public wxObjectRefData
 {
 public:
 
-    wxPGCellRenderer()
-        : wxObjectRefData() { }
-    virtual ~wxPGCellRenderer() { }
+    wxPGCellRenderer() = default;
+    virtual ~wxPGCellRenderer() = default;
 
     // Render flags
     enum
@@ -188,7 +187,7 @@ public:
     void SetFont( const wxFont& font ) { m_font = font; }
 
 protected:
-    virtual ~wxPGCellData() { }
+    virtual ~wxPGCellData() = default;
 
     wxString    m_text;
     wxBitmapBundle m_bitmapBundle;
@@ -205,7 +204,7 @@ protected:
 class WXDLLIMPEXP_PROPGRID wxPGCell : public wxObject
 {
 public:
-    wxPGCell();
+    wxPGCell() = default;
     wxPGCell(const wxPGCell& other)
         : wxObject(other)
     {
@@ -216,7 +215,7 @@ public:
               const wxColour& fgCol = wxNullColour,
               const wxColour& bgCol = wxNullColour );
 
-    virtual ~wxPGCell() { }
+    virtual ~wxPGCell() = default;
 
     wxPGCellData* GetData()
     {
@@ -650,7 +649,7 @@ public:
         SetText(label);
     }
 
-    virtual ~wxPGChoiceEntry() { }
+    virtual ~wxPGChoiceEntry() = default;
 
     void SetValue( int value ) { m_value = value; }
     int GetValue() const { return m_value; }
@@ -780,7 +779,7 @@ public:
     // Simple interface constructor.
     wxPGChoices( wxPGChoicesData* data )
     {
-        wxASSERT(data);
+        wxCHECK_RET(data, "Data pointer cannot be null");
         m_data = data;
         data->IncRef();
     }
@@ -865,10 +864,7 @@ public:
     // Returns number of items.
     unsigned int GetCount () const
     {
-        if ( !m_data )
-            return 0;
-
-        return m_data->GetCount();
+        return m_data ? m_data->GetCount() : 0;
     }
 
     // Returns value of item.
@@ -1033,7 +1029,7 @@ public:
     // Converts text into wxVariant value appropriate for this property.
     // Parameters:
     // variant - On function entry this is the old value (should not be
-    //   wxNullVariant in normal cases). Translated value must be assigned
+    //   null wxVariant in normal cases). Translated value must be assigned
     //   back to it.
     // text - Text to be translated into variant.
     // argFlags - If wxPG_FULL_VALUE is set, returns complete, storable value instead
@@ -1054,7 +1050,7 @@ public:
     // Converts integer (possibly a choice selection) into wxVariant value
     // appropriate for this property.
     // Parameters:
-    // variant - On function entry this is the old value (should not be wxNullVariant
+    // variant - On function entry this is the old value (should not be null wxVariant
     //   in normal cases). Translated value must be assigned back to it.
     // number - Integer to be translated into variant.
     // argFlags - If wxPG_FULL_VALUE is set, returns complete, storable value
@@ -1563,7 +1559,7 @@ public:
 
     // Returns true if property has visible children.
     bool IsExpanded() const
-        { return (!(m_flags & wxPG_PROP_COLLAPSED) && GetChildCount()); }
+        { return (!(m_flags & wxPG_PROP_COLLAPSED) && HasAnyChild()); }
 
     // Returns true if all parents expanded.
     bool IsVisible() const;
@@ -1840,6 +1836,12 @@ public:
     unsigned int GetChildCount() const
     {
         return (unsigned int) m_children.size();
+    }
+
+    // Checks if contains any child property.
+    bool HasAnyChild() const
+    {
+        return !m_children.empty();
     }
 
     // Returns sub-property at index i.

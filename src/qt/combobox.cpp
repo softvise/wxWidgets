@@ -47,6 +47,11 @@ public:
         wxQtComboBox* m_combo;
     };
 
+    virtual wxString GetValueForProcessEnter() override
+    {
+        return GetHandler()->GetValue();
+    }
+
 private:
     void activated(int index);
     void editTextChanged(const QString &text);
@@ -82,7 +87,9 @@ void wxQtComboBox::activated(int WXUNUSED(index))
 {
     wxComboBox *handler = GetHandler();
     if ( handler )
+    {
         handler->SendSelectionChangedEvent(wxEVT_COMBOBOX);
+    }
 }
 
 void wxQtComboBox::editTextChanged(const QString &text)
@@ -188,6 +195,20 @@ void wxComboBox::SetActualValue(const wxString &value)
 bool wxComboBox::IsReadOnly() const
 {
     return HasFlag( wxCB_READONLY );
+}
+
+bool wxComboBox::IsEditable() const
+{
+    // Only editable combo boxes have a line edit.
+    QLineEdit* const lineEdit = m_qtComboBox->lineEdit();
+    return lineEdit && !lineEdit->isReadOnly();
+}
+
+void wxComboBox::SetEditable(bool editable)
+{
+    QLineEdit* const lineEdit = m_qtComboBox->lineEdit();
+    if ( lineEdit )
+        lineEdit->setReadOnly(!editable);
 }
 
 void wxComboBox::SetValue(const wxString& value)

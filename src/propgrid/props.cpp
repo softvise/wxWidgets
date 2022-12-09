@@ -64,14 +64,12 @@ void wxStringProperty::OnSetValue()
     }
 }
 
-wxStringProperty::~wxStringProperty() { }
-
 wxString wxStringProperty::ValueToString( wxVariant& value,
                                           int argFlags ) const
 {
     wxString s = value.GetString();
 
-    if ( GetChildCount() && HasFlag(wxPG_PROP_COMPOSED_VALUE) )
+    if ( HasAnyChild() && HasFlag(wxPG_PROP_COMPOSED_VALUE) )
     {
         // Value stored in m_value is non-editable, non-full value
         if ( (argFlags & wxPG_FULL_VALUE) ||
@@ -99,7 +97,7 @@ wxString wxStringProperty::ValueToString( wxVariant& value,
 
 bool wxStringProperty::StringToValue( wxVariant& variant, const wxString& text, int argFlags ) const
 {
-    if ( GetChildCount() && HasFlag(wxPG_PROP_COMPOSED_VALUE) )
+    if ( HasAnyChild() && HasFlag(wxPG_PROP_COMPOSED_VALUE) )
         return wxPGProperty::StringToValue(variant, text, argFlags);
 
     if ( variant != text )
@@ -372,8 +370,6 @@ wxIntProperty::wxIntProperty( const wxString& label, const wxString& name,
 }
 #endif
 
-wxIntProperty::~wxIntProperty() { }
-
 wxString wxIntProperty::ValueToString( wxVariant& value,
                                        int WXUNUSED(argFlags) ) const
 {
@@ -390,7 +386,7 @@ wxString wxIntProperty::ValueToString( wxVariant& value,
     }
 #endif
 
-    return wxEmptyString;
+    return wxString();
 }
 
 bool wxIntProperty::StringToValue( wxVariant& variant, const wxString& text, int argFlags ) const
@@ -610,8 +606,6 @@ wxUIntProperty::wxUIntProperty( const wxString& label, const wxString& name,
 }
 #endif
 
-wxUIntProperty::~wxUIntProperty() { }
-
 wxString wxUIntProperty::ValueToString(wxVariant& value, int argFlags) const
 {
     static const wxStringCharType* const gs_uintTemplates32[wxPG_UINT_TEMPLATE_MAX] =
@@ -680,7 +674,7 @@ wxString wxUIntProperty::ValueToString(wxVariant& value, int argFlags) const
         return wxString::Format(fmt, ull.GetValue());
     }
 #endif
-    return wxEmptyString;
+    return wxString();
 }
 
 bool wxUIntProperty::StringToValue(wxVariant& variant, const wxString& text, int argFlags) const
@@ -881,8 +875,6 @@ wxFloatProperty::wxFloatProperty( const wxString& label,
     m_precision = -1;
     SetValue(value);
 }
-
-wxFloatProperty::~wxFloatProperty() { }
 
 #if WXWIN_COMPATIBILITY_3_0
 // This helper method provides standard way for floating point-using
@@ -1089,8 +1081,6 @@ wxBoolProperty::wxBoolProperty( const wxString& label, const wxString& name, boo
     m_flags |= wxPG_PROP_USE_DCC;
 }
 
-wxBoolProperty::~wxBoolProperty() { }
-
 wxString wxBoolProperty::ValueToString( wxVariant& value,
                                         int argFlags ) const
 {
@@ -1107,7 +1097,7 @@ wxString wxBoolProperty::ValueToString( wxVariant& value,
         else
         {
             if ( argFlags & wxPG_UNEDITABLE_COMPOSITE_FRAGMENT )
-                return wxEmptyString;
+                return wxString();
 
             wxString notFmt;
             if ( wxPGGlobalVars->m_autoGetTranslation )
@@ -1151,7 +1141,7 @@ bool wxBoolProperty::StringToValue( wxVariant& variant, const wxString& text, in
 
 bool wxBoolProperty::IntToValue( wxVariant& variant, int value, int ) const
 {
-    bool boolValue = value ? true : false;
+    bool boolValue = (bool)value;
 
     if ( variant != boolValue )
     {
@@ -1309,7 +1299,7 @@ wxString wxEnumProperty::ValueToString( wxVariant& value,
 
     int index = m_choices.Index(value.GetLong());
     if ( index < 0 )
-        return wxEmptyString;
+        return wxString();
 
     return m_choices.GetLabel(index);
 }
@@ -1781,7 +1771,7 @@ long wxFlagsProperty::IdToBit( const wxString& id ) const
 
 void wxFlagsProperty::RefreshChildren()
 {
-    if ( !m_choices.IsOk() || !GetChildCount() ) return;
+    if ( !m_choices.IsOk() || !HasAnyChild() ) return;
 
     int flags = m_value.GetLong();
 
@@ -1855,8 +1845,6 @@ wxDirProperty::wxDirProperty( const wxString& label, const wxString& name, const
     m_flags &= ~wxPG_PROP_ACTIVE_BTN; // Property button enabled only in not read-only mode.
     SetValue(value);
 }
-
-wxDirProperty::~wxDirProperty() { }
 
 wxString wxDirProperty::ValueToString(wxVariant& value, int WXUNUSED(argFlags)) const
 {
@@ -2000,8 +1988,6 @@ wxFileProperty::wxFileProperty( const wxString& label, const wxString& name,
     SetValue(value);
 }
 
-wxFileProperty::~wxFileProperty() {}
-
 wxValidator* wxFileProperty::GetClassValidator()
 {
 #if wxUSE_VALIDATORS
@@ -2091,11 +2077,11 @@ wxString wxFileProperty::ValueToString( wxVariant& value,
     wxFileName filename = value.GetString();
 
     if ( !filename.HasName() )
-        return wxEmptyString;
+        return wxString();
 
     wxString fullName = filename.GetFullName();
     if ( fullName.empty() )
-        return wxEmptyString;
+        return wxString();
 
     if ( argFlags & wxPG_FULL_VALUE )
     {
@@ -2226,8 +2212,6 @@ wxLongStringProperty::wxLongStringProperty( const wxString& label, const wxStrin
     m_dlgStyle = wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER | wxCLIP_CHILDREN;
     SetValue(value);
 }
-
-wxLongStringProperty::~wxLongStringProperty() {}
 
 wxString wxLongStringProperty::ValueToString( wxVariant& value,
                                               int WXUNUSED(argFlags) ) const
@@ -2561,9 +2545,9 @@ void wxPGArrayEditorDialog::OnEndLabelEdit(wxListEvent& event)
             // Editable list box doesn't really respect Veto(), but
             // it recognizes if no text was added, so we simulate
             // Veto() using it.
-            event.m_item.SetText(wxEmptyString);
+            event.m_item.SetText(wxString());
             m_elb->GetListCtrl()->SetItemText(m_itemPendingAtIndex,
-                                              wxEmptyString);
+                                              wxString());
 
             event.Veto();
         }
@@ -2674,8 +2658,6 @@ wxArrayStringProperty::wxArrayStringProperty( const wxString& label,
     m_dlgStyle = wxAEDIALOG_STYLE;
     SetValue( array );
 }
-
-wxArrayStringProperty::~wxArrayStringProperty() { }
 
 void wxArrayStringProperty::OnSetValue()
 {
@@ -2813,7 +2795,7 @@ bool wxArrayStringProperty::DisplayEditorDialog(wxPropertyGrid* pg, wxVariant& v
         strEdDlg->SetCustomButton(m_customBtnText, this);
 
     dlg->SetDialogValue( value );
-    dlg->Create(pg->GetPanel(), wxEmptyString,
+    dlg->Create(pg->GetPanel(), wxString(),
                 m_dlgTitle.empty() ? GetLabel() : m_dlgTitle, m_dlgStyle);
 
     if ( !wxPropertyGrid::IsSmallScreen() )
@@ -2912,7 +2894,7 @@ bool wxPGInDialogValidator::DoValidate( wxPropertyGrid* propGrid,
     if ( !tc )
     {
         {
-            tc = new wxTextCtrl( propGrid, wxID_ANY, wxEmptyString,
+            tc = new wxTextCtrl( propGrid, wxID_ANY, wxString(),
                                  wxPoint(30000,30000));
             tc->Hide();
         }

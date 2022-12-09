@@ -386,11 +386,8 @@ wxPGWindowList wxPGDatePickerCtrlEditor::CreateControls( wxPropertyGrid* propgri
                                                          const wxPoint& pos,
                                                          const wxSize& sz ) const
 {
-    wxCHECK_MSG( wxDynamicCast(property, wxDateProperty),
-                 nullptr,
-                 wxS("DatePickerCtrl editor can only be used with wxDateProperty or derivative.") );
-
     wxDateProperty* prop = wxDynamicCast(property, wxDateProperty);
+    wxCHECK_MSG(prop, nullptr, "wxDatePickerCtrl editor can only be used with wxDateProperty or derivative.");
 
     // Use two stage creation to allow cleaner display on wxMSW
     wxDatePickerCtrl* ctrl = new wxDatePickerCtrl();
@@ -426,8 +423,8 @@ wxPGWindowList wxPGDatePickerCtrlEditor::CreateControls( wxPropertyGrid* propgri
 void wxPGDatePickerCtrlEditor::UpdateControl( wxPGProperty* property,
                                               wxWindow* wnd ) const
 {
-    wxDatePickerCtrl* ctrl = (wxDatePickerCtrl*) wnd;
-    wxASSERT( wxDynamicCast(ctrl, wxDatePickerCtrl) );
+    wxDatePickerCtrl* ctrl = wxDynamicCast(wnd, wxDatePickerCtrl);
+    wxCHECK_RET(ctrl, "Only wxDatePickerCtrl editor can be updated");
 
     wxDateTime dateValue(wxInvalidDateTime);
     wxVariant v(property->GetValue());
@@ -451,8 +448,8 @@ bool wxPGDatePickerCtrlEditor::OnEvent( wxPropertyGrid* WXUNUSED(propgrid),
 
 bool wxPGDatePickerCtrlEditor::GetValueFromControl( wxVariant& variant, wxPGProperty* WXUNUSED(property), wxWindow* wnd ) const
 {
-    wxDatePickerCtrl* ctrl = (wxDatePickerCtrl*) wnd;
-    wxASSERT( wxDynamicCast(ctrl, wxDatePickerCtrl) );
+    wxDatePickerCtrl* ctrl = wxDynamicCast(wnd, wxDatePickerCtrl);
+    wxCHECK_MSG(ctrl, false, "Value can be retrieved only from wxDatePickerCtrl editor");
 
     variant = ctrl->GetValue();
 
@@ -462,17 +459,15 @@ bool wxPGDatePickerCtrlEditor::GetValueFromControl( wxVariant& variant, wxPGProp
 void wxPGDatePickerCtrlEditor::SetValueToUnspecified( wxPGProperty* property,
                                                       wxWindow* wnd ) const
 {
-    wxDatePickerCtrl* ctrl = (wxDatePickerCtrl*) wnd;
-    wxASSERT( wxDynamicCast(ctrl, wxDatePickerCtrl) );
+    wxDatePickerCtrl* ctrl = wxDynamicCast(wnd, wxDatePickerCtrl);
+    wxCHECK_RET(ctrl, "Only wxDatePickerCtrl editor can be updated");
 
     wxDateProperty* prop = wxDynamicCast(property, wxDateProperty);
+    wxCHECK_RET(prop, "wxDatePickerCtrl editor can only be used with wxDateProperty or derivative.");
 
-    if ( prop )
-    {
-        int datePickerStyle = prop->GetDatePickerStyle();
-        if ( datePickerStyle & wxDP_ALLOWNONE )
-            ctrl->SetValue(wxInvalidDateTime);
-    }
+    int datePickerStyle = prop->GetDatePickerStyle();
+    if ( datePickerStyle & wxDP_ALLOWNONE )
+        ctrl->SetValue(wxInvalidDateTime);
 }
 
 #endif // wxUSE_DATEPICKCTRL
@@ -606,8 +601,6 @@ wxFontProperty::wxFontProperty( const wxString& label, const wxString& name,
                      gs_fp_es_family_labels,gs_fp_es_family_values,
                      font.GetFamily()) );
 }
-
-wxFontProperty::~wxFontProperty() { }
 
 void wxFontProperty::OnSetValue()
 {
@@ -887,10 +880,6 @@ wxSystemColourProperty::wxSystemColourProperty( const wxString& label, const wxS
 {
         Init( wxPG_COLOUR_CUSTOM, value );
 }
-
-
-wxSystemColourProperty::~wxSystemColourProperty() { }
-
 
 wxColourPropertyValue wxSystemColourProperty::GetVal( const wxVariant* pVariant ) const
 {
@@ -1376,7 +1365,7 @@ bool wxSystemColourProperty::StringToValue( wxVariant& value, const wxString& te
         if ( colStr.Find(wxS("(")) == 0 )
         {
             // Eliminate whitespace
-            colStr.Replace(wxS(" "), wxEmptyString);
+            colStr.Replace(wxS(" "), wxString());
 
             int commaCount = colStr.Freq(wxS(','));
             if ( commaCount == 2 )
@@ -1810,11 +1799,8 @@ const wxString& wxPGGetDefaultImageWildcard()
 
         wxList& handlers = wxImage::GetHandlers();
 
-        wxList::iterator node;
-
         // Let's iterate over the image handler list.
-        //for ( wxList::Node *node = handlers.GetFirst(); node; node = node->GetNext() )
-        for ( node = handlers.begin(); node != handlers.end(); ++node )
+        for (wxList::iterator node = handlers.begin(); node != handlers.end(); ++node)
         {
             wxImageHandler *handler = (wxImageHandler*)*node;
 
@@ -2014,21 +2000,19 @@ wxArrayInt wxMultiChoiceProperty::GetValueAsIndices() const
 {
     wxVariant variant = GetValue();
     const wxArrayInt& valueArr = wxArrayIntRefFromVariant(variant);
-    unsigned int i;
 
     // Translate values to string indices.
     wxArrayInt selections;
 
     if ( !m_choices.IsOk() || !m_choices.GetCount() )
     {
-        for ( i=0; i<valueArr.size(); i++ )
-            selections.Add(-1);
+        selections.Add(-1, valueArr.size());
     }
     else
     {
-        for ( i=0; i<valueArr.size(); i++ )
+        for( int val : valueArr )
         {
-            int sIndex = m_choices.Index(valueArr[i]);
+            int sIndex = m_choices.Index(val);
             if ( sIndex >= 0 )
                 selections.Add(sIndex);
         }
@@ -2072,20 +2056,19 @@ bool wxMultiChoiceProperty::DisplayEditorDialog(wxPropertyGrid* pg, wxVariant& v
 
         // Translate string indices to strings
 
-        size_t n;
         if ( m_userStringMode == 1 )
         {
-            for (n=0;n<extraStrings.size();n++)
-                newValue.push_back(extraStrings[n]);
+            for( wxString& str : extraStrings )
+                newValue.push_back(str);
         }
 
-        for ( size_t i = 0; i < arrInt.size(); i++ )
-            newValue.push_back(m_choices.GetLabel(arrInt[i]));
+        for( int ind : arrInt )
+            newValue.push_back(m_choices.GetLabel(ind));
 
         if ( m_userStringMode == 2 )
         {
-            for (n=0;n<extraStrings.size();n++)
-                newValue.push_back(extraStrings[n]);
+            for ( wxString& str : extraStrings )
+                newValue.push_back(str);
         }
 
         value = wxVariant(newValue);
@@ -2204,7 +2187,7 @@ wxString wxDateProperty::ValueToString( wxVariant& value,
     if ( ms_defaultDateFormat.empty() )
     {
 #if wxUSE_DATEPICKCTRL
-        bool showCentury = m_dpStyle & wxDP_SHOWCENTURY ? true : false;
+        bool showCentury = (m_dpStyle & wxDP_SHOWCENTURY) != 0;
 #else
         bool showCentury = true;
 #endif

@@ -178,18 +178,6 @@
 
 
 // ----------------------------------------------------------------------------
-// Unicode support
-// ----------------------------------------------------------------------------
-
-// This option is deprecated: the library should be always built in Unicode mode
-// now, only set wxUSE_UNICODE to 0 to compile legacy code in ANSI mode if
-// absolutely necessary -- updating it is strongly recommended as the ANSI mode
-// will disappear completely in future wxWidgets releases.
-#ifndef wxUSE_UNICODE
-    #define wxUSE_UNICODE 1
-#endif
-
-// ----------------------------------------------------------------------------
 // global features
 // ----------------------------------------------------------------------------
 
@@ -283,25 +271,6 @@
 // Recommended setting: 1 if you want to support multiple languages
 #define wxUSE_PRINTF_POS_PARAMS      1
 
-// Enable the use of compiler-specific thread local storage keyword, if any.
-// This is used for wxTLS_XXX() macros implementation and normally should use
-// the compiler-provided support as it's simpler and more efficient, but is
-// disabled under Windows in wx/msw/chkconf.h as it can't be used if wxWidgets
-// is used in a dynamically loaded Win32 DLL (i.e. using LoadLibrary()) under
-// XP as this triggers a bug in compiler TLS support that results in crashes
-// when any TLS variables are used.
-//
-// If you're absolutely sure that your build of wxWidgets is never going to be
-// used in such situation, either because it's not going to be linked from any
-// kind of plugin or because you only target Vista or later systems, you can
-// set this to 2 to force the use of compiler TLS even under MSW.
-//
-// Default is 1 meaning that compiler TLS is used only if it's 100% safe.
-//
-// Recommended setting: 2 if you want to have maximal performance and don't
-// care about the scenario described above.
-#define wxUSE_COMPILER_TLS 1
-
 // ----------------------------------------------------------------------------
 // Interoperability with the standard library.
 // ----------------------------------------------------------------------------
@@ -311,35 +280,11 @@
 //
 // Default is 0
 //
-// Recommended setting: 0 as the options below already provide a relatively
-// good level of interoperability and changing this option arguably isn't worth
-// diverging from the official builds of the library.
+// Recommended setting: 1 for new code bases and if compatibility with the
+// official build of the library is not important, 0 otherwise.
 #define wxUSE_STL 0
 
-// This is not a real option but is used as the default value for
-// wxUSE_STD_IOSTREAM, wxUSE_STD_STRING and wxUSE_STD_CONTAINERS_COMPATIBLY.
-//
-// Set it to 0 if you want to disable the use of all standard classes
-// completely for some reason.
-#define wxUSE_STD_DEFAULT  1
-
-// Use standard C++ containers where it can be done without breaking backwards
-// compatibility.
-//
-// This provides better interoperability with the standard library, e.g. with
-// this option on it's possible to insert std::vector<> into many wxWidgets
-// containers directly.
-//
-// Default is 1.
-//
-// Recommended setting is 1 unless you want to avoid all dependencies on the
-// standard library.
-#define wxUSE_STD_CONTAINERS_COMPATIBLY wxUSE_STD_DEFAULT
-
-// Use standard C++ containers to implement wxVector<>, wxStack<>, wxDList<>
-// and wxHashXXX<> classes. If disabled, wxWidgets own (mostly compatible but
-// usually more limited) implementations are used which allows to avoid the
-// dependency on the C++ run-time library.
+// Use standard C++ containers to implement all wx container classes.
 //
 // Default is 0 for compatibility reasons.
 //
@@ -348,30 +293,15 @@
 #define wxUSE_STD_CONTAINERS 0
 
 // Use standard C++ streams if 1 instead of wx streams in some places. If
-// disabled, wx streams are used everywhere and wxWidgets doesn't depend on the
-// standard streams library.
+// disabled, wx streams are used instead.
 //
 // Notice that enabling this does not replace wx streams with std streams
 // everywhere, in a lot of places wx streams are used no matter what.
 //
-// Default is 1 if compiler supports it.
+// Default is 1.
 //
-// Recommended setting: 1 if you use the standard streams anyhow and so
-//                      dependency on the standard streams library is not a
-//                      problem
-#define wxUSE_STD_IOSTREAM  wxUSE_STD_DEFAULT
-
-// Enable minimal interoperability with the standard C++ string class if 1.
-// "Minimal" means that wxString can be constructed from std::string or
-// std::wstring but can't be implicitly converted to them. You need to enable
-// the option below for the latter.
-//
-// Default is 1 for most compilers.
-//
-// Recommended setting: 1 unless you want to ensure your program doesn't use
-//                      the standard C++ library at all.
-#define wxUSE_STD_STRING  wxUSE_STD_DEFAULT
-
+// Recommended setting: 1.
+#define wxUSE_STD_IOSTREAM  1
 // Make wxString as much interchangeable with std::[w]string as possible, in
 // particular allow implicit conversion of wxString to either of these classes.
 // This comes at a price (or a benefit, depending on your point of view) of not
@@ -380,6 +310,10 @@
 // Because a lot of existing code relies on these conversions, this option is
 // disabled by default but can be enabled for your build if you don't care
 // about compatibility.
+//
+// Note that wxString can always be constructed from std::[w]string, whether
+// this option is turned on or off, it only enables implicit conversion in the
+// other direction.
 //
 // Default is 0 if wxUSE_STL has its default value or 1 if it is enabled.
 //
@@ -550,9 +484,11 @@
 #define wxUSE_DIALUP_MANAGER   1
 
 // Compile in classes for run-time DLL loading and function calling.
-// Required by wxUSE_DIALUP_MANAGER.
 //
-// This setting is for Win32 only
+// This is required by wxMSW implementation and so is always enabled there,
+// regardless of the value here. For the other ports this option can be
+// disabled to save a tiny amount of code, but there is typically no reason to
+// do it.
 //
 // Default is 1.
 //
