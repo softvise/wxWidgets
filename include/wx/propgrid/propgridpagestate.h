@@ -17,6 +17,8 @@
 
 #include "wx/propgrid/property.h"
 
+#include <set>
+
 // -----------------------------------------------------------------------
 
 // A return value from wxPropertyGrid::HitTest(),
@@ -33,9 +35,7 @@ public:
     {
     }
 
-    ~wxPropertyGridHitTestResult()
-    {
-    }
+    ~wxPropertyGridHitTestResult() = default;
 
     // Returns column hit. -1 for margin.
     int GetColumn() const { return m_column; }
@@ -162,11 +162,10 @@ wxPG_ITERATE_DEFAULT = wxPG_ITERATE_NORMAL
 // Base for wxPropertyGridIterator classes.
 class WXDLLIMPEXP_PROPGRID wxPropertyGridIteratorBase
 {
-public:
-    wxPropertyGridIteratorBase()
-    {
-    }
+protected:
+    wxPropertyGridIteratorBase() = default;
 
+public:
     void Assign( const wxPropertyGridIteratorBase& it );
 
     bool AtEnd() const { return m_property == nullptr; }
@@ -234,9 +233,8 @@ public:
     {
         Assign(it);
     }
-    ~wxPGIterator()
-    {
-    }
+    ~wxPGIterator() = default;
+
     wxPGIterator& operator=(const wxPGIterator& it)
     {
         if ( this != &it )
@@ -618,7 +616,7 @@ protected:
     wxVector<int>               m_colWidths;
 
     // List of indices of columns the user can edit by clicking it.
-    wxVector<int>               m_editableColumns;
+    std::set<unsigned int>      m_editableColumns;
 
     // Column proportions.
     wxVector<int>               m_columnProportions;

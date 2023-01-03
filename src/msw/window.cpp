@@ -76,6 +76,7 @@
 #endif
 
 #include "wx/msw/private.h"
+#include "wx/msw/private/darkmode.h"
 #include "wx/msw/private/dpiaware.h"
 #include "wx/msw/private/keyboard.h"
 #include "wx/msw/private/paint.h"
@@ -92,10 +93,6 @@
 #if wxUSE_CARET
     #include "wx/caret.h"
 #endif // wxUSE_CARET
-
-#if wxUSE_RADIOBOX
-    #include "wx/radiobox.h"
-#endif // wxUSE_RADIOBOX
 
 #if wxUSE_SPINCTRL
     #include "wx/spinctrl.h"
@@ -538,25 +535,42 @@ bool wxWindowMSW::CreateUsingMSWClass(const wxChar* classname,
     // Enable double buffering by default for all our own, i.e. not the ones
     // using native controls, classes.
     //
-    // Note that this function is not used for top-level windows, so we don't
-    // set this style for them, and also that setting it for children of
-    // windows that already have WS_EX_COMPOSITED set doesn't seem to have any
-    // bad effect as the style is just ignored in this case, so we don't bother
-    // checking it it's already set for the parent, even though we could.
-    if ( !classname )
+    // The loop here is a bogus one just to create a block that we can break
+    // from, it never executes more than once.
+    while ( !classname )
     {
+        // WS_EX_COMPOSITED seems to be incompatible with WS_EX_TOPMOST, so
+        // don't use it for:
+
+        // Popup windows that get created with this style themselves: this
+        // seems to work under Windows 10, but doesn't under Windows 7 and
+        // using WS_EX_COMPOSITED for these windows that are temporarily
+        // doesn't seem to be very useful anyhow, so don't bother testing for
+        // the OS version and just always disable it for them.
+        if ( exstyle & WS_EX_TOPMOST )
+            break;
+
+        // Children of such windows as this doesn't work neither (see #23078).
+        wxWindow* const tlw = wxGetTopLevelParent(this);
+        if ( tlw && tlw->HasFlag(wxSTAY_ON_TOP) )
+            break;
+
         // We also allow disabling the use of this style globally by setting
         // a system option if nothing else (i.e. turning it off for individual
         // windows) works.
         if ( !wxSystemOptions::GetOptionInt("msw.window.no-composited") )
-        {
-            exstyle |= WS_EX_COMPOSITED;
+            break;
 
-            // We have to use the class including CS_[HV]REDRAW bits, as
-            // WS_EX_COMPOSITED doesn't work correctly if the entire window is
-            // not redrawn every time it's drawn.
-            style |= wxFULL_REPAINT_ON_RESIZE;
-        }
+        // Do enable composition for this window.
+
+        exstyle |= WS_EX_COMPOSITED;
+
+        // We have to use the class including CS_[HV]REDRAW bits, as
+        // WS_EX_COMPOSITED doesn't work correctly if the entire window is
+        // not redrawn every time it's drawn.
+        style |= wxFULL_REPAINT_ON_RESIZE;
+
+        break;
     }
 
     if ( IsShown() )
@@ -1949,8 +1963,9 @@ void wxWindowMSW::DoGetPosition(int *x, int *y) const
         {
             // In RTL mode, we want the logical left x-coordinate,
             // which would be the physical right x-coordinate.
-            ::MapWindowPoints(nullptr, parent ? GetHwndOf(parent) : HWND_DESKTOP,
-                              (LPPOINT)&rect, 2);
+            wxMapWindowPoints(HWND_DESKTOP,
+                              parent ? GetHwndOf(parent) : HWND_DESKTOP,
+                              &rect);
         }
 
         pos.x = rect.left;
@@ -3132,7 +3147,11 @@ wxWindowMSW::MSWHandleMessage(WXLRESULT *result,
             }
             else // no DC given
             {
-                processed = HandlePaint();
+                if ( MSWShouldUseAutoDarkMode() &&
+                        wxMSWDarkMode::PaintIfNecessary(GetHwnd(), m_oldWndProc) )
+                    processed = true;
+                else
+                    processed = HandlePaint();
             }
             break;
 
@@ -3811,7 +3830,7 @@ wxWindowMSW::MSWHandleMessage(WXLRESULT *result,
                     // it below if it fails.
                     RECT rcClient;
 
-                    WindowHDC hdc(GetHwnd());
+                    ClientHDC hdc(GetHwnd());
 
                     if ( ::GetThemeBackgroundContentRect
                                 (
@@ -4067,6 +4086,16 @@ bool wxWindowMSW::MSWCreate(const wxChar *wclass,
     if ( !m_hWnd )
     {
         return false;
+    }
+
+    if ( wxMSWDarkMode::IsActive() )
+    {
+        // We currently allow customizing the theme at wxControl level as some
+        // native controls require using a different theme, but for plain
+        // windows it looks like the default ("Explorer") should always be used
+        // and its only (but important) effect is to make their scrollbars
+        // dark, if they're used.
+        wxMSWDarkMode::AllowForWindow(m_hWnd);
     }
 
     SubclassWin(m_hWnd);
@@ -4873,7 +4902,7 @@ wxSize wxWindowMSW::GetDPI() const
 
     if ( !dpi.x || !dpi.y )
     {
-        dpi = wxGetDPIofHDC(WindowHDC(hwnd));
+        dpi = wxGetDPIofHDC(ClientHDC(hwnd));
     }
 
     return dpi;
@@ -5090,6 +5119,13 @@ bool wxWindowMSW::HandleCaptureChanged(WXHWND hWndGainedCapture)
 
 bool wxWindowMSW::HandleSettingChange(WXWPARAM wParam, WXLPARAM lParam)
 {
+    // Check for the special case of changing the system light/dark mode.
+    if ( lParam && wxStrcmp((TCHAR*)lParam, wxT("ImmersiveColorSet")) == 0 )
+    {
+        // Forward to the existing function generating an event for this.
+        HandleSysColorChange();
+    }
+
     // despite MSDN saying "(This message cannot be sent directly to a window.)"
     // we need to send this to child windows (it is only sent to top-level
     // windows) so {list,tree}ctrls can adjust their font size if necessary
@@ -5237,68 +5273,6 @@ extern wxCOLORMAP *wxGetStdColourMap()
     }
 
     return s_cmap;
-}
-
-#if wxUSE_UXTHEME && !defined(TMT_FILLCOLOR)
-    #define TMT_FILLCOLOR       3802
-    #define TMT_TEXTCOLOR       3803
-    #define TMT_BORDERCOLOR     3801
-#endif
-
-wxColour wxWindowMSW::MSWGetThemeColour(const wchar_t *themeName,
-                                        int themePart,
-                                        int themeState,
-                                        MSWThemeColour themeColour,
-                                        wxSystemColour fallback) const
-{
-#if wxUSE_UXTHEME
-    if ( wxUxThemeIsActive() )
-    {
-        int themeProperty = 0;
-
-        // TODO: Convert this into a table? Sure would be faster.
-        switch ( themeColour )
-        {
-            case ThemeColourBackground:
-                themeProperty = TMT_FILLCOLOR;
-                break;
-            case ThemeColourText:
-                themeProperty = TMT_TEXTCOLOR;
-                break;
-            case ThemeColourBorder:
-                themeProperty = TMT_BORDERCOLOR;
-                break;
-            default:
-                wxFAIL_MSG(wxT("unsupported theme colour"));
-        }
-
-        wxUxThemeHandle hTheme((const wxWindow *)this, themeName);
-        COLORREF col;
-        HRESULT hr = ::GetThemeColor
-                            (
-                                hTheme,
-                                themePart,
-                                themeState,
-                                themeProperty,
-                                &col
-                            );
-
-        if ( SUCCEEDED(hr) )
-            return wxRGBToColour(col);
-
-        wxLogApiError(
-            wxString::Format(
-                "GetThemeColor(%s, %i, %i, %i)",
-                themeName, themePart, themeState, themeProperty),
-            hr);
-    }
-#else
-    wxUnusedVar(themeName);
-    wxUnusedVar(themePart);
-    wxUnusedVar(themeState);
-    wxUnusedVar(themeColour);
-#endif
-    return wxSystemSettings::GetColour(fallback);
 }
 
 // ---------------------------------------------------------------------------
@@ -5513,7 +5487,7 @@ wxWindowMSW::MSWGetBgBrushForChild(WXHDC hDC, wxWindowMSW *child)
         // uses RTL layout, which is exactly what we need here as the child
         // window origin is its _right_ top corner in this case and not the
         // left one.
-        ::MapWindowPoints(nullptr, GetHwnd(), (POINT *)&rc, 2);
+        wxMapWindowPoints(HWND_DESKTOP, GetHwnd(), &rc);
 
         int x = rc.left,
             y = rc.top;
@@ -7085,17 +7059,6 @@ extern wxWindow *wxGetWindowFromHWND(WXHWND hWnd)
         win = wxFindWinFromHandle(hwnd);
         if ( !win )
         {
-#if wxUSE_RADIOBOX && !defined(__WXUNIVERSAL__)
-            // native radiobuttons return DLGC_RADIOBUTTON here and for any
-            // wxWindow class which overrides WM_GETDLGCODE processing to
-            // do it as well, win would be already non null
-            if ( ::SendMessage(hwnd, WM_GETDLGCODE, 0, 0) & DLGC_RADIOBUTTON )
-            {
-                win = wxRadioBox::GetFromRadioButtonHWND(hwnd);
-            }
-            //else: it's a wxRadioButton, not a radiobutton from wxRadioBox
-#endif // wxUSE_RADIOBOX
-
             // spin control text buddy window should be mapped to spin ctrl
             // itself so try it too
 #if wxUSE_SPINCTRL && !defined(__WXUNIVERSAL__)
