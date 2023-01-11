@@ -699,12 +699,7 @@ void FormMain::OnPropertyGridChange( wxPropertyGridEvent& event )
     }
     else if ( name == "Password" )
     {
-        static int pwdMode = 0;
-
-        //m_pPropGridManager->SetPropertyAttribute(property, wxPG_STRING_PASSWORD, (long)pwdMode);
-
-        pwdMode++;
-        pwdMode &= 1;
+        // Do something very secret here...
     }
     else
     if ( name == "Font" )
@@ -1669,10 +1664,8 @@ void FormMain::PopulateWithLibraryConfig ()
 #endif
 
     ADD_WX_LIB_CONF_GROUP("Debugging Settings")
-    ADD_WX_LIB_CONF( wxUSE_DEBUG_CONTEXT )
-    ADD_WX_LIB_CONF( wxUSE_MEMORY_TRACING )
-    ADD_WX_LIB_CONF( wxUSE_GLOBAL_MEMORY_OPERATORS )
-    ADD_WX_LIB_CONF( wxUSE_DEBUG_NEW_ALWAYS )
+    ADD_WX_LIB_CONF( wxUSE_DEBUGREPORT )
+    ADD_WX_LIB_CONF( wxUSE_STACKWALKER )
     ADD_WX_LIB_CONF( wxUSE_ON_FATAL_EXCEPTION )
 
     ADD_WX_LIB_CONF_GROUP("Unicode Support")
