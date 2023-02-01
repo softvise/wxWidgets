@@ -138,6 +138,9 @@ const char wxPropertyGridNameStr[] = "wxPropertyGrid";
 // Statics in one class for easy destruction.
 // -----------------------------------------------------------------------
 
+// This is the real global wxPGGlobalVarsClass object allocated on demand.
+static wxPGGlobalVarsClass* g_PGGlobalVars = nullptr;
+
 #include "wx/module.h"
 
 class wxPGGlobalVarsClassManager : public wxModule
@@ -145,8 +148,8 @@ class wxPGGlobalVarsClassManager : public wxModule
     wxDECLARE_DYNAMIC_CLASS(wxPGGlobalVarsClassManager);
 public:
     wxPGGlobalVarsClassManager() = default;
-    virtual bool OnInit() override { wxPGGlobalVars = new wxPGGlobalVarsClass(); return true; }
-    virtual void OnExit() override { wxDELETE(wxPGGlobalVars); }
+    virtual bool OnInit() override { return true; }
+    virtual void OnExit() override { wxDELETE(g_PGGlobalVars); }
 };
 
 wxIMPLEMENT_DYNAMIC_CLASS(wxPGGlobalVarsClassManager, wxModule);
@@ -161,8 +164,19 @@ void wxPGInitResourceModule()
     wxModule::InitializeModules();
 }
 
-wxPGGlobalVarsClass* wxPGGlobalVars = nullptr;
+// This object is a proxy that allows us to only create wxPGGlobalVarsClass
+// object when it's really needed. Note that we need to use an object for this
+// instead of a function for compatibility reasons: a lot of existing code uses
+// wxPGGlobalVars directly.
+wxPGGlobalVarsPtr wxPGGlobalVars;
 
+wxPGGlobalVarsClass* wxPGGlobalVarsPtr::operator->() const
+{
+    if ( !g_PGGlobalVars )
+        g_PGGlobalVars = new wxPGGlobalVarsClass();
+
+    return g_PGGlobalVars;
+}
 
 wxPGGlobalVarsClass::wxPGGlobalVarsClass()
     // Prepare some shared variants
@@ -2126,7 +2140,7 @@ int wxPropertyGrid::DoDrawItems( wxDC& dc,
 
     const wxPGProperty* firstSelected = GetSelection();
     const wxPropertyGridPageState* state = m_pState;
-    const wxVector<int>& colWidths = state->m_colWidths;
+    const std::vector<int>& colWidths = state->m_colWidths;
     const unsigned int colCount = state->GetColumnCount();
 
     dc.SetFont(normalFont);
@@ -2137,7 +2151,7 @@ int wxPropertyGrid::DoDrawItems( wxDC& dc,
 
     //
     // Pre-generate list of visible properties.
-    wxVector<wxPGProperty*> visPropArray;
+    std::vector<wxPGProperty*> visPropArray;
     visPropArray.reserve((m_height/m_lineHeight)+6);
 
     for ( ; !it.AtEnd(); it.Next() )
@@ -2160,7 +2174,7 @@ int wxPropertyGrid::DoDrawItems( wxDC& dc,
     wxPGProperty* nextP = visPropArray[0];
 
     // Calculate splitters positions
-    wxVector<int> splitterPos;
+    std::vector<int> splitterPos;
     splitterPos.reserve(colCount);
     int sx = x;
     for ( int cw : colWidths )
@@ -6279,9 +6293,9 @@ wxPropertyGridEvent::~wxPropertyGridEvent()
 
         // Use iterate from the back since it is more likely that the event
         // being destroyed is at the end of the array.
-        wxVector<wxPropertyGridEvent*>& liveEvents = m_pg->m_liveEvents;
+        std::vector<wxPropertyGridEvent*>& liveEvents = m_pg->m_liveEvents;
 
-        for ( wxVector<wxPropertyGridEvent*>::reverse_iterator rit = liveEvents.rbegin(); rit != liveEvents.rend(); ++rit )
+        for ( std::vector<wxPropertyGridEvent*>::reverse_iterator rit = liveEvents.rbegin(); rit != liveEvents.rend(); ++rit )
         {
             if ( *rit == this )
             {

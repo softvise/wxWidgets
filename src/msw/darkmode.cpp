@@ -92,8 +92,10 @@ namespace wxMSWImpl
 
 // Global pointers of the functions we use: they're not only undocumented, but
 // don't appear in the SDK headers at all.
-BOOL (WINAPI *ShouldAppsUseDarkMode)() = nullptr;
-BOOL (WINAPI *AllowDarkModeForWindow)(HWND hwnd, BOOL allow) = nullptr;
+//
+// Note that, not being public, they use C++ bool type and not Win32 BOOL.
+bool (WINAPI *ShouldAppsUseDarkMode)() = nullptr;
+bool (WINAPI *AllowDarkModeForWindow)(HWND hwnd, bool allow) = nullptr;
 DWORD (WINAPI *SetPreferredAppMode)(DWORD) = nullptr;
 
 bool InitDarkMode()
@@ -250,7 +252,7 @@ void EnableForTLW(HWND hwnd)
     if ( FAILED(hr) )
         wxLogApiError("DwmSetWindowAttribute(USE_IMMERSIVE_DARK_MODE)", hr);
 
-    wxMSWImpl::AllowDarkModeForWindow(hwnd, TRUE);
+    wxMSWImpl::AllowDarkModeForWindow(hwnd, true);
 }
 
 void AllowForWindow(HWND hwnd, const wchar_t* themeName, const wchar_t* themeId)
@@ -258,7 +260,7 @@ void AllowForWindow(HWND hwnd, const wchar_t* themeName, const wchar_t* themeId)
     if ( !wxMSWImpl::ShouldUseDarkMode() )
         return;
 
-    if ( wxMSWImpl::AllowDarkModeForWindow(hwnd, TRUE) )
+    if ( wxMSWImpl::AllowDarkModeForWindow(hwnd, true) )
         wxLogTrace(TRACE_DARKMODE, "Allow dark mode for %p failed", hwnd);
 
     if ( themeName || themeId )
@@ -319,6 +321,7 @@ wxColour GetColour(wxSystemColour index)
         case wxSYS_COLOUR_MENUHILIGHT:
             return wxColour(0x353535);
 
+        case wxSYS_COLOUR_BTNHIGHLIGHT:
         case wxSYS_COLOUR_HIGHLIGHT:
             return wxColour(0x777777);
 
@@ -328,7 +331,6 @@ wxColour GetColour(wxSystemColour index)
         case wxSYS_COLOUR_3DDKSHADOW:
         case wxSYS_COLOUR_3DLIGHT:
         case wxSYS_COLOUR_ACTIVEBORDER:
-        case wxSYS_COLOUR_BTNHIGHLIGHT:
         case wxSYS_COLOUR_DESKTOP:
         case wxSYS_COLOUR_GRADIENTACTIVECAPTION:
         case wxSYS_COLOUR_GRADIENTINACTIVECAPTION:
