@@ -273,6 +273,7 @@ wxWebViewEdgeImpl::~wxWebViewEdgeImpl()
         m_webView->remove_NavigationCompleted(m_navigationCompletedToken);
         m_webView->remove_SourceChanged(m_sourceChangedToken);
         m_webView->remove_NavigationStarting(m_navigationStartingToken);
+        m_webView->remove_FrameNavigationStarting(m_frameNavigationStartingToken);
         m_webView->remove_NewWindowRequested(m_newWindowRequestedToken);
         m_webView->remove_DocumentTitleChanged(m_documentTitleChangedToken);
         m_webView->remove_DOMContentLoaded(m_DOMContentLoadedToken);
@@ -296,10 +297,6 @@ bool wxWebViewEdgeImpl::Create()
     m_historyPosition = -1;
 
     wxString userDataPath = wxStandardPaths::Get().GetUserLocalDataDir();
-
-    if (m_webViewEnvironmentOptions && !m_customUserAgent.empty())
-        m_webViewEnvironmentOptions->put_AdditionalBrowserArguments(
-            wxString::Format("--user-agent=\"%s\"", m_customUserAgent).wc_str());
 
     HRESULT hr = wxCreateCoreWebView2EnvironmentWithOptions(
         ms_browserExecutableDir.wc_str(),
@@ -377,6 +374,16 @@ void wxWebViewEdgeImpl::UpdateBounds()
 
 HRESULT wxWebViewEdgeImpl::OnNavigationStarting(ICoreWebView2* WXUNUSED(sender), ICoreWebView2NavigationStartingEventArgs* args)
 {
+    return HandleNavigationStarting(args, true);
+}
+
+HRESULT wxWebViewEdgeImpl::OnFrameNavigationStarting(ICoreWebView2* WXUNUSED(sender), ICoreWebView2NavigationStartingEventArgs* args)
+{
+    return HandleNavigationStarting(args, false);
+}
+
+HRESULT wxWebViewEdgeImpl::HandleNavigationStarting(ICoreWebView2NavigationStartingEventArgs* args, bool mainFrame)
+{
     wxWEBVIEW_EDGE_EVENT_HANDLER_METHOD
     m_isBusy = true;
     wxString evtURL;
@@ -386,6 +393,8 @@ HRESULT wxWebViewEdgeImpl::OnNavigationStarting(ICoreWebView2* WXUNUSED(sender),
 
     wxWebViewEvent event(wxEVT_WEBVIEW_NAVIGATING, m_ctrl->GetId(), evtURL, wxString());
     event.SetEventObject(m_ctrl);
+    if (mainFrame)
+        event.SetInt(1);
     m_ctrl->HandleWindowEvent(event);
 
     if (!event.IsAllowed())
@@ -630,6 +639,10 @@ HRESULT wxWebViewEdgeImpl::OnWebViewCreated(HRESULT result, ICoreWebView2Control
         Callback<ICoreWebView2NavigationStartingEventHandler>(
             this, &wxWebViewEdgeImpl::OnNavigationStarting).Get(),
         &m_navigationStartingToken);
+    m_webView->add_FrameNavigationStarting(
+        Callback<ICoreWebView2NavigationStartingEventHandler>(
+            this, &wxWebViewEdgeImpl::OnFrameNavigationStarting).Get(),
+        &m_frameNavigationStartingToken);
     m_webView->add_SourceChanged(
         Callback<ICoreWebView2SourceChangedEventHandler>(
             this, &wxWebViewEdgeImpl::OnSourceChanged).Get(),
@@ -686,6 +699,12 @@ HRESULT wxWebViewEdgeImpl::OnWebViewCreated(HRESULT result, ICoreWebView2Control
     {
         m_ctrl->EnableBrowserAcceleratorKeys(m_pendingEnableBrowserAcceleratorKeys == 1);
         m_pendingEnableBrowserAcceleratorKeys = -1;
+    }
+
+    if (!m_pendingUserAgent.empty())
+    {
+        m_ctrl->SetUserAgent(m_pendingUserAgent);
+        m_pendingUserAgent.clear();
     }
 
     wxCOMPtr<ICoreWebView2Settings> settings(GetSettings());
@@ -750,6 +769,23 @@ ICoreWebView2Settings* wxWebViewEdgeImpl::GetSettings()
     }
 
     return settings;
+}
+
+ICoreWebView2Settings3* wxWebViewEdgeImpl::GetSettings3()
+{
+    ICoreWebView2Settings3* settings3 = nullptr;
+    wxCOMPtr<ICoreWebView2Settings> settings(GetSettings());
+    if (settings)
+    {
+        HRESULT hr = settings->QueryInterface(IID_PPV_ARGS(&settings3));
+        if (FAILED(hr))
+        {
+            wxLogApiError("WebView2::get_Settings3", hr);
+            return nullptr;
+        }
+    }
+
+    return settings3;
 }
 
 wxWebViewEdge::wxWebViewEdge():
@@ -1083,26 +1119,20 @@ bool wxWebViewEdge::IsAccessToDevToolsEnabled() const
 
 void wxWebViewEdge::EnableBrowserAcceleratorKeys(bool enable)
 {
-    wxCOMPtr<ICoreWebView2Settings> settings(m_impl->GetSettings());
+    wxCOMPtr<ICoreWebView2Settings3> settings(m_impl->GetSettings3());
     if (settings)
-    {
-        wxCOMPtr<ICoreWebView2Settings3> settings3;
-        if (SUCCEEDED(settings->QueryInterface(IID_PPV_ARGS(&settings3))))
-            settings3->put_AreBrowserAcceleratorKeysEnabled(enable);
-    }
+        settings->put_AreBrowserAcceleratorKeysEnabled(enable);
     else
         m_impl->m_pendingEnableBrowserAcceleratorKeys = enable ? 1 : 0;
 }
 
 bool wxWebViewEdge::AreBrowserAcceleratorKeysEnabled() const
 {
-    wxCOMPtr<ICoreWebView2Settings> settings(m_impl->GetSettings());
+    wxCOMPtr<ICoreWebView2Settings3> settings(m_impl->GetSettings3());
     if (settings)
     {
         BOOL browserAcceleratorKeysEnabled = TRUE;
-        wxCOMPtr<ICoreWebView2Settings3> settings3;
-        if (SUCCEEDED(settings->QueryInterface(IID_PPV_ARGS(&settings3))))
-            settings3->get_AreBrowserAcceleratorKeysEnabled(&browserAcceleratorKeysEnabled);
+        settings->get_AreBrowserAcceleratorKeysEnabled(&browserAcceleratorKeysEnabled);
 
         if (!browserAcceleratorKeysEnabled)
             return false;
@@ -1114,17 +1144,28 @@ bool wxWebViewEdge::AreBrowserAcceleratorKeysEnabled() const
 
 bool wxWebViewEdge::SetUserAgent(const wxString& userAgent)
 {
-    m_impl->m_customUserAgent = userAgent;
-    // Can currently only be set before Create()
-    wxCHECK_MSG(!m_impl->m_webViewController, false, "Can't be called after Create()");
-    if (m_impl->m_webViewController)
-        return false;
+    wxCOMPtr<ICoreWebView2Settings3> settings(m_impl->GetSettings3());
+    if (settings)
+        return SUCCEEDED(settings->put_UserAgent(userAgent.wc_str()));
     else
-        return true;
+        m_impl->m_pendingUserAgent = userAgent;
 
-    // TODO: As of Edge SDK 1.0.790 an experimental API to set the user agent
-    // is available. Reimplement using m_impl->GetSettings() when it's stable.
+    return true;
 }
+
+wxString wxWebViewEdge::GetUserAgent() const
+{
+    wxCOMPtr<ICoreWebView2Settings3> settings(m_impl->GetSettings3());
+    if (settings)
+    {
+        wxCoTaskMemPtr<wchar_t> userAgent;
+        if (SUCCEEDED(settings->get_UserAgent(&userAgent)))
+            return wxString(userAgent);
+    }
+
+    return wxString{};
+}
+
 
 void* wxWebViewEdge::GetNativeBackend() const
 {

@@ -998,8 +998,7 @@ public:
         If your first request should already use the custom user agent
         please use two step creation and call SetUserAgent() before Create().
 
-        @note This is not implemented for IE. For Edge SetUserAgent()
-            MUST be called before Create().
+        @note This is not implemented for IE.
 
         @since 3.1.5
     */
@@ -1669,6 +1668,16 @@ public:
         @since 3.1.6
     */
     bool IsError() const;
+
+    /**
+        Returns true if the navigation target is the main frame. Only valid
+        for events of type @c wxEVT_WEBVIEW_NAVIGATING
+
+        @note This is only available with the macOS and the Edge backend.
+
+        @since 3.3.0
+    */
+    bool IsTargetMainFrame() const;
 };
 
 
