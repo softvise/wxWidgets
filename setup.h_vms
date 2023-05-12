@@ -169,6 +169,10 @@ typedef pid_t GPid;
 
 #define wxUSE_REPRODUCIBLE_BUILD 1
 
+#define wxUSE_UNICODE_UTF8 0
+
+#define wxUSE_UTF8_LOCALE_ONLY 0
+
 #define wxUSE_EXCEPTIONS 1
 
 #define wxUSE_EXTENDED_RTTI 0
@@ -189,11 +193,9 @@ typedef pid_t GPid;
 
 #define wxUSE_PRINTF_POS_PARAMS      0
 
-#define wxUSE_STL 0
+#define wxUSE_STD_CONTAINERS 0
 
-#define wxUSE_STD_CONTAINERS wxUSE_STL
-
-#define wxUSE_STD_STRING_CONV_IN_WXSTRING wxUSE_STL
+#define wxUSE_STD_STRING_CONV_IN_WXSTRING 0
 
 #define wxUSE_LONGLONG      1
 
@@ -651,9 +653,6 @@ typedef pid_t GPid;
  */
 #define wxUSE_SELECT_DISPATCHER 1
 #define wxUSE_EPOLL_DISPATCHER 0
-
-#define wxUSE_UNICODE_UTF8 0
-#define wxUSE_UTF8_LOCALE_ONLY 0
 
 /*
    Use GStreamer for Unix.
