@@ -163,6 +163,12 @@
 #   endif
 #endif
 
+/* Prevents conflicts between sys/types.h and winsock.h with Cygwin, */
+/* when using Windows sockets. */
+#if defined(__CYGWIN__) && defined(__WINDOWS__)
+#define __USE_W32_SOCKETS
+#endif
+
 /*  ---------------------------------------------------------------------------- */
 /*  wxWidgets version and compatibility defines */
 /*  ---------------------------------------------------------------------------- */
@@ -197,6 +203,15 @@
     #endif
 #else
     #define wxCHECK_CXX_STD(ver) 0
+#endif
+
+/**
+ * C++ header checks
+ */
+#if defined(__has_include)
+    #define wxHAS_CXX17_INCLUDE(header) (wxCHECK_CXX_STD(201703L) && __has_include(header))
+#else
+    #define wxHAS_CXX17_INCLUDE(header) 0
 #endif
 
 /*  ---------------------------------------------------------------------------- */
