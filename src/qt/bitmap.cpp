@@ -597,11 +597,16 @@ void wxBitmap::QtBlendMaskWithAlpha()
     // alpha channel, if it has any. Notice that the bitmap can still be
     // converted to wxImage, but without mask information.
 
-    if ( IsOk() && HasAlpha() && M_MASK && M_MASK->GetHandle() )
+    if ( IsOk() && M_MASK && M_MASK->GetHandle() )
     {
         AllocExclusive();
         M_PIXDATA.setMask(*M_MASK->GetHandle());
-        wxDELETE(M_MASK);
+
+        // Notice that if the mask was created from a colour that does not exist in
+        // the bitmap, setMask() will have no effect on the bitmap.  So only delete
+        // it if it has been applied successfully.
+        if ( HasAlpha() )
+            wxDELETE(M_MASK);
     }
 }
 
