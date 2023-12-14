@@ -276,7 +276,6 @@ void wxWindowQt::Init()
     m_horzScrollBar = nullptr;
     m_vertScrollBar = nullptr;
 
-    m_qtPicture = nullptr;
     m_qtPainter.reset(new QPainter());
 
     m_mouseInside = false;
@@ -492,6 +491,9 @@ void wxWindowQt::DoEnable(bool enable)
 
 void wxWindowQt::SetFocus()
 {
+    if ( !GetHandle()->isActiveWindow() )
+        GetHandle()->activateWindow();
+
     GetHandle()->setFocus();
 }
 
@@ -1312,7 +1314,7 @@ bool wxWindowQt::QtHandlePaintEvent ( QWidget *handler, QPaintEvent *event )
         {
             bool handled;
 
-            if ( m_qtPicture == nullptr )
+            if ( !m_qtPicture )
             {
                 // Real paint event (not for wxClientDC), prepare the background
                 switch ( GetBackgroundStyle() )
@@ -1349,7 +1351,7 @@ bool wxWindowQt::QtHandlePaintEvent ( QWidget *handler, QPaintEvent *event )
                                 dc.Clear();
                             }
                         }
-                        // fall through
+                        wxFALLTHROUGH;
                     case wxBG_STYLE_SYSTEM:
                         if ( GetThemeEnabled() )
                         {
@@ -1379,7 +1381,7 @@ bool wxWindowQt::QtHandlePaintEvent ( QWidget *handler, QPaintEvent *event )
                 // Data from wxClientDC, paint it
                 m_qtPicture->play( m_qtPainter.get() );
                 // Reset picture
-                m_qtPicture->setData( nullptr, 0 );
+                m_qtPicture.reset();
                 handled = true;
             }
 
@@ -1785,7 +1787,7 @@ QScrollArea *wxWindowQt::QtGetScrollBarsContainer() const
 
 void wxWindowQt::QtSetPicture( QPicture* pict )
 {
-    m_qtPicture = pict;
+    m_qtPicture.reset(pict);
 }
 
 QPainter *wxWindowQt::QtGetPainter()
