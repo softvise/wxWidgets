@@ -8,6 +8,8 @@
 // For compilers that support precompilation, includes "wx.h".
 #include "wx/wxprec.h"
 
+#if wxUSE_LISTBOX
+
 #include "wx/listbox.h"
 #include "wx/qt/private/winevent.h"
 
@@ -137,7 +139,9 @@ bool wxListBox::Create(wxWindow *parent, wxWindowID id,
         }
         m_qtListWidget->addItem(item);
     }
-    return wxListBoxBase::Create( parent, id, pos, size, style, validator, name );
+    return wxListBoxBase::Create( parent, id, pos, size,
+                                  style | wxVSCROLL | wxHSCROLL,
+                                  validator, name );
 }
 
 bool wxListBox::Create(wxWindow *parent, wxWindowID id,
@@ -170,7 +174,9 @@ bool wxListBox::Create(wxWindow *parent, wxWindowID id,
         m_qtListWidget->addItem(item);
     }
 
-    return wxListBoxBase::Create( parent, id, pos, size, style, validator, name );
+    return wxListBoxBase::Create( parent, id, pos, size,
+                                  style | wxVSCROLL | wxHSCROLL,
+                                  validator, name );
 }
 
 void wxListBox::DoCreate(wxWindow* parent, long style)
@@ -368,11 +374,6 @@ void wxListBox::QtSendEvent(wxEventType evtType, int rowIndex, bool selected)
     SendEvent(evtType, rowIndex, selected);
 }
 
-QScrollArea *wxListBox::QtGetScrollBarsContainer() const
-{
-    return (QScrollArea *) m_qtListWidget;
-}
-
 void wxListBox::UnSelectAll()
 {
     Q_FOREACH(QListWidgetItem* l, m_qtListWidget->selectedItems())
@@ -380,3 +381,5 @@ void wxListBox::UnSelectAll()
         l->setSelected(false);
     }
 }
+
+#endif // wxUSE_LISTBOX

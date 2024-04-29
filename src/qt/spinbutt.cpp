@@ -8,6 +8,8 @@
 // For compilers that support precompilation, includes "wx.h".
 #include "wx/wxprec.h"
 
+#if wxUSE_SPINBTN
+
 #include "wx/spinbutt.h"
 #include "wx/qt/private/winevent.h"
 
@@ -91,7 +93,7 @@ bool wxSpinButton::Create(wxWindow *parent,
     wxSize newSize( size );
     newSize.SetWidth( 18 );
 
-    return QtCreateControl( parent, id, pos, newSize, style, wxDefaultValidator, name );
+    return wxSpinButtonBase::Create( parent, id, pos, newSize, style, wxDefaultValidator, name );
 }
 
 void wxSpinButton::SetRange(int min, int max)
@@ -118,3 +120,5 @@ QWidget *wxSpinButton::GetHandle() const
 {
     return m_qtSpinBox;
 }
+
+#endif // wxUSE_SPINBTN

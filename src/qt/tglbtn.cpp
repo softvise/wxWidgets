@@ -8,6 +8,7 @@
 // For compilers that support precompilation, includes "wx.h".
 #include "wx/wxprec.h"
 
+#if wxUSE_TOGGLEBTN
 
 #ifndef WX_PRECOMP
     #include "wx/bitmap.h"
@@ -101,7 +102,7 @@ bool wxToggleButton::Create(wxWindow *parent,
     // this button is toggleable and has a text label
     SetLabel( wxIsStockID( id ) ? wxGetStockLabel( id ) : label );
 
-    return QtCreateControl( parent, id, pos, size, style, validator, name );
+    return wxToggleButtonBase::Create( parent, id, pos, size, style, validator, name );
 }
 
 void wxToggleButton::SetValue(bool state)
@@ -113,3 +114,5 @@ bool wxToggleButton::GetValue() const
 {
     return m_qtPushButton->isChecked();
 }
+
+#endif // wxUSE_TOGGLEBTN

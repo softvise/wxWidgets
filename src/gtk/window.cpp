@@ -72,6 +72,8 @@ typedef guint KeySym;
     #define PANGO_VERSION_CHECK(a,b,c) 0
 #endif
 
+constexpr const char* TRACE_MOUSE = "mouse";
+
 //-----------------------------------------------------------------------------
 // documentation on internals
 //-----------------------------------------------------------------------------
@@ -231,6 +233,23 @@ static wxWindowGTK *gs_deferredFocusOut = nullptr;
 // mouse event that caused it
 GdkEvent    *g_lastMouseEvent = nullptr;
 int          g_lastButtonNumber = 0;
+
+static wxWindowGTK* g_windowUnderMouse = nullptr;
+
+namespace wxGTKImpl
+{
+
+bool SetWindowUnderMouse(wxWindowGTK* win)
+{
+    if ( g_windowUnderMouse == win )
+        return false;
+
+    g_windowUnderMouse = win;
+
+    return true;
+}
+
+} // namespace wxGTKImpl
 
 #ifdef wxHAS_XKB
 namespace
@@ -1667,38 +1686,19 @@ bool wxWindowGTK::GTKShouldIgnoreEvent() const
     return g_blockEventsOnDrag;
 }
 
-int wxWindowGTK::GTKCallbackCommonPrologue(GdkEventAny *event) const
+// Some callbacks check for just g_blockEventsOnDrag but others check for both
+// it and g_blockEventsOnScroll. It's not really clear why, but define a helper
+// function performing the latter check too for now to avoid changing the
+// behaviour of the existing code.
+namespace
 {
-    if (g_blockEventsOnDrag)
-        return TRUE;
-    if (g_blockEventsOnScroll)
-        return TRUE;
 
-    if (!GTKIsOwnWindow(event->window))
-        return FALSE;
-
-    return -1;
+bool AreGTKEventsBlocked()
+{
+    return g_blockEventsOnDrag || g_blockEventsOnScroll;
 }
 
-// overloads for all GDK event types we use here: we need to have this as
-// GdkEventXXX can't be implicitly cast to GdkEventAny even if it, in fact,
-// derives from it in the sense that the structs have the same layout
-#define wxDEFINE_COMMON_PROLOGUE_OVERLOAD(T)                                  \
-    static int wxGtkCallbackCommonPrologue(T *event, wxWindowGTK *win)        \
-    {                                                                         \
-        return win->GTKCallbackCommonPrologue((GdkEventAny *)event);          \
-    }
-
-wxDEFINE_COMMON_PROLOGUE_OVERLOAD(GdkEventButton)
-wxDEFINE_COMMON_PROLOGUE_OVERLOAD(GdkEventMotion)
-wxDEFINE_COMMON_PROLOGUE_OVERLOAD(GdkEventCrossing)
-
-#undef wxDEFINE_COMMON_PROLOGUE_OVERLOAD
-
-#define wxCOMMON_CALLBACK_PROLOGUE(event, win)                                \
-    const int rc = wxGtkCallbackCommonPrologue(event, win);                   \
-    if ( rc != -1 )                                                           \
-        return rc
+} // anonymous namespace
 
 // all event handlers must have C linkage as they're called from GTK+ C code
 extern "C"
@@ -1722,7 +1722,8 @@ gtk_window_button_press_callback( GtkWidget* WXUNUSED_IN_GTK3(widget),
 
     wxPROCESS_EVENT_ONCE(GdkEventButton, gdk_event);
 
-    wxCOMMON_CALLBACK_PROLOGUE(gdk_event, win);
+    if ( AreGTKEventsBlocked() )
+        return FALSE;
 
     g_lastButtonNumber = gdk_event->button;
 
@@ -1856,7 +1857,8 @@ gtk_window_button_release_callback( GtkWidget *WXUNUSED(widget),
 {
     wxPROCESS_EVENT_ONCE(GdkEventButton, gdk_event);
 
-    wxCOMMON_CALLBACK_PROLOGUE(gdk_event, win);
+    if ( AreGTKEventsBlocked() )
+        return FALSE;
 
     g_lastButtonNumber = 0;
 
@@ -1958,7 +1960,8 @@ gtk_window_motion_notify_callback( GtkWidget * WXUNUSED(widget),
 {
     wxPROCESS_EVENT_ONCE(GdkEventMotion, gdk_event);
 
-    wxCOMMON_CALLBACK_PROLOGUE(gdk_event, win);
+    if ( AreGTKEventsBlocked() )
+        return FALSE;
 
     g_lastMouseEvent = (GdkEvent*) gdk_event;
 
@@ -1968,27 +1971,54 @@ gtk_window_motion_notify_callback( GtkWidget * WXUNUSED(widget),
     if ( g_captureWindow )
     {
         // synthesise a mouse enter or leave event if needed
-        GdkWindow* winUnderMouse =
-            wx_gdk_device_get_window_at_position(gdk_event->device, nullptr, nullptr);
+        GdkWindow* winUnderMouse = nullptr;
+        bool isOut = true;
 
-        GdkDisplay* display = winUnderMouse
-            ? gdk_window_get_display(winUnderMouse)
-            : nullptr;
-        if ( !display )
-            display = gdk_display_get_default();
+        if (gdk_event->x >= 0 && gdk_event->y >= 0)
+        {
+            const wxSize size(win->GetClientSize());
+            if (gdk_event->x < size.x && gdk_event->y < size.y)
+            {
+                isOut = false;
+                winUnderMouse =
+                    wx_gdk_device_get_window_at_position(
+                        gdk_event->device, nullptr, nullptr);
+            }
+        }
 
-        // This seems to be necessary and actually been added to
-        // GDK itself in version 2.0.X
-        gdk_display_flush(display);
+        const bool hadMouse = g_captureWindowHasMouse;
+        g_captureWindowHasMouse = false;
 
-        bool hasMouse = winUnderMouse == gdk_event->window;
-        if ( hasMouse != g_captureWindowHasMouse )
+        if (winUnderMouse == gdk_event->window)
+            g_captureWindowHasMouse = true;
+#ifdef __WXGTK3__
+        else if (winUnderMouse)
+        {
+            // Avoid treating overlay scrollbar as a different window
+            void* widgetUnderMouse;
+            gdk_window_get_user_data(winUnderMouse, &widgetUnderMouse);
+            if (GTK_IS_SCROLLBAR(widgetUnderMouse))
+            {
+                GtkWidget* parent = gtk_widget_get_parent(GTK_WIDGET(widgetUnderMouse));
+                if (parent == win->m_widget && GTK_IS_SCROLLED_WINDOW(parent))
+                    g_captureWindowHasMouse = true;
+            }
+        }
+#endif
+
+        if (g_captureWindowHasMouse != hadMouse)
         {
             // the mouse changed window
-            g_captureWindowHasMouse = hasMouse;
-
             wxMouseEvent eventM(g_captureWindowHasMouse ? wxEVT_ENTER_WINDOW
                                                         : wxEVT_LEAVE_WINDOW);
+            if (!g_captureWindowHasMouse && isOut)
+            {
+                // Ensure fractional coordinate is outside window when converted to int
+                if (gdk_event->x < 0)
+                    gdk_event->x = floor(gdk_event->x);
+                if (gdk_event->y < 0)
+                    gdk_event->y = floor(gdk_event->y);
+            }
             InitMouseEvent(win, eventM, gdk_event);
             eventM.SetEventObject(win);
             win->GTKProcessEvent(eventM);
@@ -2001,10 +2031,9 @@ gtk_window_motion_notify_callback( GtkWidget * WXUNUSED(widget),
         // reset the event object and id in case win changed.
         event.SetEventObject( win );
         event.SetId( win->GetId() );
-    }
 
-    if ( !g_captureWindow )
         SendSetCursorEvent(win, event.m_x, event.m_y);
+    }
 
     bool ret = win->GTKProcessEvent(event);
 
@@ -2217,19 +2246,49 @@ wx_window_focus_callback(GtkWidget *widget,
     return FALSE;
 }
 
+} // extern "C"
+
 //-----------------------------------------------------------------------------
 // "enter_notify_event"
 //-----------------------------------------------------------------------------
 
-static gboolean
-gtk_window_enter_callback( GtkWidget*,
-                           GdkEventCrossing *gdk_event,
-                           wxWindowGTK *win )
+gboolean
+wxGTKImpl::WindowEnterCallback(GtkWidget* widget,
+                               GdkEventCrossing* gdk_event,
+                               wxWindowGTK* win)
 {
-    wxCOMMON_CALLBACK_PROLOGUE(gdk_event, win);
+    wxLogTrace(TRACE_MOUSE, "Window enter in %s (window %p) for window %p",
+               wxDumpWindow(win), gtk_widget_get_window(widget), gdk_event->window);
+
+    if ( AreGTKEventsBlocked() )
+        return FALSE;
 
     // Event was emitted after a grab
-    if (gdk_event->mode != GDK_CROSSING_NORMAL) return FALSE;
+    if (gdk_event->mode != GDK_CROSSING_NORMAL)
+    {
+        wxLogTrace(TRACE_MOUSE, "Ignore event with mode %d", gdk_event->mode);
+        return FALSE;
+    }
+
+    if ( g_windowUnderMouse == win )
+    {
+        // This can happen if the enter event was generated from another
+        // callback, as is the case for wxSearchCtrl, for example.
+        wxLogTrace(TRACE_MOUSE, "Reentering window %s", wxDumpWindow(win));
+        return FALSE;
+    }
+
+    if ( g_windowUnderMouse )
+    {
+        // We must not have got the leave event for the previous window, so
+        // generate it now -- better late than never.
+        wxMouseEvent event( wxEVT_LEAVE_WINDOW );
+        InitMouseEvent(g_windowUnderMouse, event, gdk_event);
+
+        (void)g_windowUnderMouse->GTKProcessEvent(event);
+    }
+
+    g_windowUnderMouse = win;
 
     wxMouseEvent event( wxEVT_ENTER_WINDOW );
     InitMouseEvent(win, event, gdk_event);
@@ -2240,27 +2299,60 @@ gtk_window_enter_callback( GtkWidget*,
     return win->GTKProcessEvent(event);
 }
 
+extern "C" {
+
+static gboolean
+gtk_window_enter_callback( GtkWidget* widget,
+                           GdkEventCrossing *gdk_event,
+                           wxWindowGTK *win )
+{
+    return wxGTKImpl::WindowEnterCallback(widget, gdk_event, win);
+}
+
+} // extern "C"
+
 //-----------------------------------------------------------------------------
 // "leave_notify_event"
 //-----------------------------------------------------------------------------
 
-static gboolean
-gtk_window_leave_callback( GtkWidget*,
-                           GdkEventCrossing *gdk_event,
-                           wxWindowGTK *win )
+gboolean
+wxGTKImpl::WindowLeaveCallback(GtkWidget* widget,
+                               GdkEventCrossing* gdk_event,
+                               wxWindowGTK* win)
 {
-    wxCOMMON_CALLBACK_PROLOGUE(gdk_event, win);
+    wxLogTrace(TRACE_MOUSE, "Window leave in %s (window %p) for window %p",
+               wxDumpWindow(win), gtk_widget_get_window(widget), gdk_event->window);
+
+    if ( AreGTKEventsBlocked() )
+        return FALSE;
 
     if (win->m_needCursorReset)
         win->GTKUpdateCursor();
 
     // Event was emitted after an ungrab
-    if (gdk_event->mode != GDK_CROSSING_NORMAL) return FALSE;
+    if (gdk_event->mode != GDK_CROSSING_NORMAL)
+    {
+        wxLogTrace(TRACE_MOUSE, "Ignore event with mode %d", gdk_event->mode);
+        return FALSE;
+    }
+
+    if ( win == g_windowUnderMouse )
+        g_windowUnderMouse = nullptr;
 
     wxMouseEvent event( wxEVT_LEAVE_WINDOW );
     InitMouseEvent(win, event, gdk_event);
 
     return win->GTKProcessEvent(event);
+}
+
+extern "C" {
+
+static gboolean
+gtk_window_leave_callback( GtkWidget* widget,
+                           GdkEventCrossing *gdk_event,
+                           wxWindowGTK *win )
+{
+    return wxGTKImpl::WindowLeaveCallback(widget, gdk_event, win);
 }
 
 //-----------------------------------------------------------------------------
@@ -2885,6 +2977,9 @@ wxWindowGTK::~wxWindowGTK()
     // throw exceptions from their assert handler, so don't assert here.
     if ( g_captureWindow == this )
         g_captureWindow = nullptr;
+
+    if ( g_windowUnderMouse == this )
+        g_windowUnderMouse = nullptr;
 
     if (m_wxwindow)
     {
@@ -4693,8 +4788,12 @@ bool wxWindowGTK::GTKHandleFocusIn()
 
     if ( gs_pendingFocus )
     {
-        wxLogTrace(TRACE_FOCUS, "Resetting pending focus %s on focus set",
-                   wxDumpWindow(gs_pendingFocus));
+        if ( gs_pendingFocus != gs_currentFocus )
+        {
+            wxLogTrace(TRACE_FOCUS, "Resetting pending focus %s on focus set",
+                       wxDumpWindow(gs_pendingFocus));
+        }
+
         gs_pendingFocus = nullptr;
     }
 

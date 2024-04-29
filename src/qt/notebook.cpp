@@ -8,6 +8,8 @@
 // For compilers that support precompilation, includes "wx.h".
 #include "wx/wxprec.h"
 
+#if wxUSE_NOTEBOOK
+
 #include "wx/notebook.h"
 #include "wx/qt/private/utils.h"
 #include "wx/qt/private/converter.h"
@@ -75,7 +77,7 @@ bool wxNotebook::Create(wxWindow *parent,
 {
     m_qtTabWidget = new wxQtTabWidget( parent, this );
 
-    if ( !QtCreateControl( parent, id, pos, size, style, wxDefaultValidator, name ) )
+    if ( !wxControl::Create( parent, id, pos, size, style, wxDefaultValidator, name ) )
         return false;
 
     if ( m_windowStyle & wxBK_RIGHT )
@@ -244,3 +246,5 @@ QWidget *wxNotebook::GetHandle() const
 {
     return m_qtTabWidget;
 }
+
+#endif // wxUSE_NOTEBOOK

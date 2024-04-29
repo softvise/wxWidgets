@@ -433,7 +433,7 @@ bool MyApp::OnInit()
     #endif // wxUSE_COLOURDLG
 
     #if wxUSE_FONTDLG
-        choices_menu->Append(DIALOGS_CHOOSE_FONT, "Choose &font\tShift-Ctrl-N");
+        choices_menu->Append(DIALOGS_CHOOSE_FONT, "Choose &font\tShift-Ctrl-J");
     #endif // wxUSE_FONTDLG
 
     #if wxUSE_CHOICEDLG
@@ -1318,6 +1318,8 @@ public:
         sizerBtns->Add(new wxButton(this, wxID_RESET, "&Reset all"),
                        wxSizerFlags().Border(wxLEFT));
     }
+    MyRearrangeDialog(const MyRearrangeDialog&) = delete;
+    MyRearrangeDialog& operator=(const MyRearrangeDialog&) = delete;
 
     // call this instead of ShowModal() to update order and labels array in
     // case the dialog was not cancelled
@@ -1409,7 +1411,6 @@ private:
     wxTextCtrl *m_text;
 
     wxDECLARE_EVENT_TABLE();
-    wxDECLARE_NO_COPY_CLASS(MyRearrangeDialog);
 };
 
 wxBEGIN_EVENT_TABLE(MyRearrangeDialog, wxRearrangeDialog)
@@ -1731,6 +1732,8 @@ public:
         : m_dialog(&dialog)
     {
     }
+    MyCustomizeHook(const MyCustomizeHook&) = delete;
+    MyCustomizeHook& operator=(const MyCustomizeHook&) = delete;
 
     // Override pure virtual base class method to add our custom controls.
     virtual void AddCustomControls(wxFileDialogCustomize& customizer) override
@@ -1804,8 +1807,6 @@ private:
     wxFileDialogStaticText* m_label;
 
     wxString m_info;
-
-    wxDECLARE_NO_COPY_CLASS(MyCustomizeHook);
 };
 
 void MyFrame::FileOpen(wxCommandEvent& WXUNUSED(event) )
@@ -2551,6 +2552,15 @@ public:
         Bind(wxEVT_BUTTON, &TestNotificationMessageWindow::OnCloseClicked, this, wxID_CLOSE);
     }
 
+    ~TestNotificationMessageWindow()
+    {
+#if defined(__WXMSW__) && wxUSE_TASKBARICON
+        // If the persistent taskbar icon has been created and is
+        // not deleted at the end, the application will never exit.
+        delete m_taskbarIcon;
+#endif
+    }
+
 private:
     enum
     {
@@ -2772,7 +2782,8 @@ private:
 
     void OnNotificationDismissed(wxCommandEvent& event)
     {
-        ShowStatus("Notification was dismissed");
+        // See wxNotificationMessage::DismissalReason for reason explanations.
+        ShowStatus(wxString::Format("Notification was dismissed (reason: %d)", event.GetInt()));
 
         Raise();
 

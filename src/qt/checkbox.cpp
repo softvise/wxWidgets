@@ -8,6 +8,8 @@
 // For compilers that support precompilation, includes "wx.h".
 #include "wx/wxprec.h"
 
+#if wxUSE_CHECKBOX
+
 #include "wx/checkbox.h"
 #include "wx/qt/private/utils.h"
 #include "wx/qt/private/converter.h"
@@ -66,7 +68,7 @@ bool wxCheckBox::Create(wxWindow *parent, wxWindowID id, const wxString& label,
     m_qtCheckBox->setText( wxQtConvertString( label ) );
 
     // Do the initialization here as WXValidateStyle may fail in unit tests
-    bool ok = QtCreateControl( parent, id, pos, size, style, validator, name );
+    bool ok = wxCheckBoxBase::Create( parent, id, pos, size, style, validator, name );
 
     WXValidateStyle(&style);
 
@@ -139,6 +141,9 @@ wxString wxCheckBox::GetLabel() const
 
 void wxCheckBox::SetLabel(const wxString& label)
 {
+    wxCheckBoxBase::SetLabel( label );
+
     m_qtCheckBox->setText( wxQtConvertString(label) );
 }
 
+#endif // wxUSE_CHECKBOX

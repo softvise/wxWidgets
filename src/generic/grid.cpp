@@ -2642,7 +2642,6 @@ wxBEGIN_EVENT_TABLE( wxGrid, wxScrolledCanvas )
     EVT_SIZE( wxGrid::OnSize )
     EVT_DPI_CHANGED( wxGrid::OnDPIChanged )
     EVT_KEY_DOWN( wxGrid::OnKeyDown )
-    EVT_KEY_UP( wxGrid::OnKeyUp )
     EVT_CHAR ( wxGrid::OnChar )
 wxEND_EVENT_TABLE()
 
@@ -2788,6 +2787,10 @@ void wxGrid::InitPixelFields()
 #else
     m_defaultRowHeight += 4;
 #endif
+
+    // Scroll by row height to avoid showing partial rows when all heights are
+    // the same.
+    m_yScrollPixelsPerLine = m_defaultRowHeight;
 
     // Don't change the value when called from OnDPIChanged() later if the
     // corresponding label window is hidden, these values should remain zeroes
@@ -6113,11 +6116,6 @@ void wxGrid::OnKeyDown( wxKeyEvent& event )
     }
 }
 
-void wxGrid::OnKeyUp( wxKeyEvent& WXUNUSED(event) )
-{
-    // try local handlers
-}
-
 void wxGrid::OnChar( wxKeyEvent& event )
 {
     // is it possible to edit the current cell at all?
@@ -6857,6 +6855,15 @@ void wxGrid::DrawRowLabels( wxDC& dc, const wxArrayInt& rows)
     {
         DrawRowLabel( dc, rows[i] );
     }
+
+    if ( m_cursorMode == WXGRID_CURSOR_MOVE_ROW && m_dragLastColour )
+    {
+        // draw the insertion marker for drag-moving
+        wxPen pen(*m_dragLastColour, 2);
+        dc.SetPen(pen);
+        dc.DrawLine(0, m_dragLastPos + 1, m_rowLabelWidth, m_dragLastPos + 1);
+        dc.SetPen(wxNullPen);
+    }
 }
 
 void wxGrid::DrawRowLabel( wxDC& dc, int row )
@@ -6959,6 +6966,15 @@ void wxGrid::DrawColLabels( wxDC& dc,const wxArrayInt& cols )
     for ( size_t i = 0; i < numLabels; i++ )
     {
         DrawColLabel( dc, cols[i] );
+    }
+
+    if ( m_cursorMode == WXGRID_CURSOR_MOVE_COL && m_dragLastColour )
+    {
+        // draw the insertion marker for drag-moving
+        wxPen pen(*m_dragLastColour, 2);
+        dc.SetPen(pen);
+        dc.DrawLine(m_dragLastPos + 1, 0, m_dragLastPos + 1, m_colLabelHeight);
+        dc.SetPen(wxNullPen);
     }
 }
 
@@ -10834,22 +10850,26 @@ bool wxGrid::CopySelection()
         return false;
     }
 
+    bool firstRow = true;
     wxString buf;
     for (int row = sel.GetTopRow(); row <= sel.GetBottomRow(); row++)
     {
-        bool first = true;
+        if (firstRow)
+            firstRow = false;
+        else
+            buf += wxTextFile::GetEOL();
+
+        bool firstColumn = true;
 
         for (int col = sel.GetLeftCol(); col <= sel.GetRightCol(); col++)
         {
-            if (first)
-                first = false;
+            if (firstColumn)
+                firstColumn = false;
             else
                 buf += '\t';
 
             buf += GetCellValue(row, col);
         }
-
-        buf += wxTextFile::GetEOL();
     }
 
     wxTheClipboard->SetData(new wxTextDataObject(buf));
@@ -11053,6 +11073,11 @@ int wxGridSizesInfo::GetSize(unsigned pos) const
 void wxGrid::SetDropTarget(wxDropTarget *dropTarget)
 {
     GetGridWindow()->SetDropTarget(dropTarget);
+}
+
+wxDropTarget* wxGrid::GetDropTarget() const
+{
+    return GetGridWindow()->GetDropTarget();
 }
 
 #endif // wxUSE_DRAG_AND_DROP

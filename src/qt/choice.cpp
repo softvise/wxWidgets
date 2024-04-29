@@ -8,6 +8,8 @@
 // For compilers that support precompilation, includes "wx.h".
 #include "wx/wxprec.h"
 
+#if wxUSE_CHOICE
+
 #include "wx/choice.h"
 #include "wx/qt/private/winevent.h"
 
@@ -138,7 +140,7 @@ bool wxChoice::Create( wxWindow *parent, wxWindowID id,
     while ( n-- > 0 )
         m_qtComboBox->addItem( wxQtConvertString( *choices++ ));
 
-    return QtCreateControl( parent, id, pos, size, style, validator, name );
+    return wxChoiceBase::Create( parent, id, pos, size, style, validator, name );
 }
 
 wxSize wxChoice::DoGetBestSize() const
@@ -264,3 +266,5 @@ QWidget *wxChoice::GetHandle() const
 {
     return m_qtComboBox;
 }
+
+#endif // wxUSE_CHOICE

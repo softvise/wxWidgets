@@ -1278,6 +1278,8 @@ public:
         return wxTimeSpan(*this).Multiply(n);
     }
 
+    friend WXDLLIMPEXP_BASE wxTimeSpan operator*(int n, const wxTimeSpan& ts);
+
         // return this timespan with opposite sign
     wxTimeSpan Negate() const { return wxTimeSpan(-GetValue()); }
         // negate the value of the timespan
@@ -1531,6 +1533,7 @@ public:
     {
         return wxDateSpan(*this).Multiply(n);
     }
+    friend WXDLLIMPEXP_BASE wxDateSpan operator*(int n, const wxDateSpan& ds);
 
     // ds1 == d2 if and only if for every wxDateTime t t + ds1 == t + ds2
     inline bool operator==(const wxDateSpan& ds) const
@@ -1725,9 +1728,11 @@ protected:
 
 inline bool wxDateTime::IsInStdRange() const
 {
-    // currently we don't know what is the real type of time_t so prefer to err
-    // on the safe side and limit it to 32 bit values which is safe everywhere
-    return m_time >= 0l && (m_time / TIME_T_FACTOR) < wxINT32_MAX;
+    // if sizeof(time_t) is greater than 32 bits, we assume it
+    // is safe to return values exceeding wxINT32_MAX
+
+    return m_time >= 0l &&
+        ( (sizeof(time_t) > 4 ) || ( (m_time / TIME_T_FACTOR) < wxINT32_MAX) );
 }
 
 /* static */
@@ -1834,7 +1839,7 @@ inline time_t wxDateTime::GetTicks() const
         return (time_t)-1;
     }
 
-    return (time_t)((m_time / (long)TIME_T_FACTOR).ToLong()) + WX_TIME_BASE_OFFSET;
+    return (time_t)((m_time / TIME_T_FACTOR).GetValue()) + WX_TIME_BASE_OFFSET;
 }
 
 inline bool wxDateTime::SetToLastWeekDay(WeekDay weekday,
@@ -2242,22 +2247,6 @@ inline wxDateSpan wxDateSpan::Subtract(const wxDateSpan& other) const
 #undef MILLISECONDS_PER_DAY
 
 #undef MODIFY_AND_RETURN
-
-// ============================================================================
-// binary operators
-// ============================================================================
-
-// ----------------------------------------------------------------------------
-// wxTimeSpan operators
-// ----------------------------------------------------------------------------
-
-wxTimeSpan WXDLLIMPEXP_BASE operator*(int n, const wxTimeSpan& ts);
-
-// ----------------------------------------------------------------------------
-// wxDateSpan
-// ----------------------------------------------------------------------------
-
-wxDateSpan WXDLLIMPEXP_BASE operator*(int n, const wxDateSpan& ds);
 
 // ============================================================================
 // other helper functions

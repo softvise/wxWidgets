@@ -8,6 +8,8 @@
 // For compilers that support precompilation, includes "wx.h".
 #include "wx/wxprec.h"
 
+#if wxUSE_STATTEXT
+
 #include "wx/stattext.h"
 #include "wx/qt/private/converter.h"
 #include "wx/qt/private/winevent.h"
@@ -63,12 +65,9 @@ bool wxStaticText::Create(wxWindow *parent,
     else
         m_qtLabel->setAlignment(Qt::AlignLeft);
 
-    if ( !QtCreateControl(parent, id, pos, size, style, wxDefaultValidator, name) )
-        return false;
-
     SetLabel(label);
 
-    return true;
+    return wxStaticTextBase::Create(parent, id, pos, size, style, wxDefaultValidator, name);
 }
 
 void wxStaticText::SetLabel(const wxString& label)
@@ -100,3 +99,5 @@ QWidget *wxStaticText::GetHandle() const
 {
     return m_qtLabel;
 }
+
+#endif // wxUSE_STATTEXT

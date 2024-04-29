@@ -8,6 +8,8 @@
 // For compilers that support precompilation, includes "wx.h".
 #include "wx/wxprec.h"
 
+#if wxUSE_STATLINE
+
 #include "wx/statline.h"
 
 #include <QtWidgets/QFrame>
@@ -40,10 +42,12 @@ bool wxStaticLine::Create( wxWindow *parent,
     else if ( style & wxLI_VERTICAL )
         m_qtFrame->setFrameStyle( QFrame::VLine );
 
-    return QtCreateControl( parent, id, pos, size, style, wxDefaultValidator, name );
+    return wxStaticLineBase::Create( parent, id, pos, size, style, wxDefaultValidator, name );
 }
 
 QWidget *wxStaticLine::GetHandle() const
 {
     return m_qtFrame;
 }
+
+#endif // wxUSE_STATLINE

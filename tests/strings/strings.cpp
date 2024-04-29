@@ -19,6 +19,8 @@
 
 #include "wx/private/localeset.h"
 
+#include <errno.h>
+
 // ----------------------------------------------------------------------------
 // tests
 // ----------------------------------------------------------------------------
@@ -784,7 +786,7 @@ TEST_CASE("StringToULongLong", "[wxString]")
 
 TEST_CASE("StringToDouble", "[wxString]")
 {
-    double d;
+    double d = 0.0;
     static const struct ToDoubleData
     {
         const wxChar *str;
