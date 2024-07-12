@@ -140,7 +140,7 @@ TEST_CASE("BitmapTestCase::ToImage", "[bitmap][image][convertto]")
         wxBitmap bmp(16, 16, 24);
         {
             wxMemoryDC dc(bmp);
-            dc.SetPen(*wxYELLOW_PEN);
+            dc.SetPen(*wxTRANSPARENT_PEN);
             dc.SetBrush(*wxYELLOW_BRUSH);
             dc.DrawRectangle(0, 0, bmp.GetWidth(), bmp.GetHeight());
         }
@@ -153,19 +153,67 @@ TEST_CASE("BitmapTestCase::ToImage", "[bitmap][image][convertto]")
         REQUIRE(image.GetWidth() == bmp.GetWidth());
         REQUIRE(image.GetHeight() == bmp.GetHeight());
 
-        wxNativePixelData dataBmp(bmp);
-        wxNativePixelData::Iterator rowStartBmp(dataBmp);
-
-        for ( int y = 0; y < bmp.GetHeight(); ++y )
         {
-            wxNativePixelData::Iterator iBmp = rowStartBmp;
-            for ( int x = 0; x < bmp.GetWidth(); ++x, ++iBmp )
+            wxNativePixelData dataBmp(bmp);
+            wxNativePixelData::Iterator rowStartBmp(dataBmp);
+
+            for ( int y = 0; y < bmp.GetHeight(); ++y )
             {
-                wxColour bmpc(iBmp.Red(), iBmp.Green(), iBmp.Blue());
-                wxColour imgc(image.GetRed(x, y), image.GetGreen(x, y), image.GetBlue(x, y));
-                CHECK_EQUAL_COLOUR_RGB(imgc, bmpc);
+                wxNativePixelData::Iterator iBmp = rowStartBmp;
+                for ( int x = 0; x < bmp.GetWidth(); ++x, ++iBmp )
+                {
+                    wxColour bmpc(iBmp.Red(), iBmp.Green(), iBmp.Blue());
+                    wxColour imgc(image.GetRed(x, y), image.GetGreen(x, y), image.GetBlue(x, y));
+                    CHECK_EQUAL_COLOUR_RGB(imgc, bmpc);
+                }
+                rowStartBmp.OffsetY(dataBmp, 1);
             }
-            rowStartBmp.OffsetY(dataBmp, 1);
+        }
+
+        for ( int size = 4 ; size != 0 ; --size )
+        {
+            INFO("Red square size:  " << size)
+            wxBitmap bmp2 = bmp;
+            // verify bmp starts yellow
+            {
+                wxNativePixelData dataBmp(bmp2);
+                wxNativePixelData::Iterator rowStartBmp(dataBmp);
+                for ( int y = 0; y < bmp2.GetHeight(); ++y )
+                {
+                    wxNativePixelData::Iterator iBmp = rowStartBmp;
+                    for ( int x = 0; x < bmp2.GetWidth(); ++x, ++iBmp )
+                    {
+                        wxColour bmpc(iBmp.Red(), iBmp.Green(), iBmp.Blue());
+                        CHECK_EQUAL_COLOUR_RGB(bmpc, (*wxYELLOW));
+                    }
+                    rowStartBmp.OffsetY(dataBmp, 1);
+                }
+            }
+
+            // change square to red
+            wxRect square(wxPoint(5, 5), wxSize(size, size));
+            {
+                wxMemoryDC dc(bmp2);
+                dc.SetPen(*wxTRANSPARENT_PEN);
+                dc.SetBrush(*wxRED_BRUSH);
+                dc.DrawRectangle(square);
+            }
+
+            // verify bitmap is still yellow, except square is red
+            {
+                wxNativePixelData dataBmp(bmp2);
+                wxNativePixelData::Iterator rowStartBmp(dataBmp);
+                for ( int y = 0; y < bmp2.GetHeight(); ++y )
+                {
+                    wxNativePixelData::Iterator iBmp = rowStartBmp;
+                    for ( int x = 0; x < bmp2.GetWidth(); ++x, ++iBmp )
+                    {
+                        wxColour bmpc(iBmp.Red(), iBmp.Green(), iBmp.Blue());
+                        CHECK_EQUAL_COLOUR_RGB(bmpc, (square.Contains(x, y) ? *wxRED : *wxYELLOW));
+                    }
+                    rowStartBmp.OffsetY(dataBmp, 1);
+                }
+            }
         }
     }
 
@@ -1839,7 +1887,11 @@ TEST_CASE("Bitmap::ScaleFactor", "[bitmap][dc][scale]")
     // A bitmap "compatible" with this DC should also use the same scale factor.
     wxBitmap bmp2(4, 4, dc);
     CHECK( bmp2.GetScaleFactor() == 2 );
+#ifdef wxHAS_DPI_INDEPENDENT_PIXELS
     CHECK( bmp2.GetSize() == wxSize(8, 8) );
+#else
+    CHECK( bmp2.GetSize() == wxSize(4, 4) );
+#endif
 
     // A compatible bitmap created from wxImage and this DC should also inherit
     // the same scale factor, but its size should be still the same as that of
