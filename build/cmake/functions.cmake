@@ -14,7 +14,7 @@ include(CMakePrintHelpers)
 
 # Use the MSVC/makefile naming convention, or the configure naming convention,
 # this is the same check as used in FindwxWidgets.
-if(WIN32 AND NOT CYGWIN AND NOT MSYS)
+if(WIN32 AND NOT CYGWIN AND NOT MSYS AND NOT CMAKE_CROSSCOMPILING)
     set(WIN32_MSVC_NAMING 1)
 else()
     set(WIN32_MSVC_NAMING 0)
@@ -260,6 +260,8 @@ function(wx_set_target_properties target_name)
     set(lib_prefix "lib")
     if(MSVC OR (WIN32 AND wxBUILD_SHARED))
         set(lib_prefix)
+    elseif (CYGWIN AND wxBUILD_SHARED)
+        set(lib_prefix "cyg")
     endif()
 
     # static (and import) library names

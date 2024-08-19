@@ -153,9 +153,10 @@ void wxInitData::Initialize(int argcIn, char **argvIn)
 {
     wxASSERT_MSG( !argc && !argv, "initializing twice?" );
 
-#ifndef __WXMSW__
+    // We assume that the command line arguments are static and remain valid
+    // until the end of the program, so we don't make a copy of them here.
     argvA = argvIn;
-#endif
+    ownsArgvA = false;
 
     argv = new wchar_t *[argcIn + 1];
 
@@ -183,8 +184,6 @@ void wxInitData::Initialize(int argcIn, char **argvIn)
     argv[wargc] = nullptr;
 }
 
-#ifndef __WXMSW__
-
 void wxInitData::InitArgvA()
 {
     // We need to convert from wide arguments back to the narrow ones.
@@ -200,8 +199,6 @@ void wxInitData::InitArgvA()
         argvA[i] = wxConvWhateverWorks.cWC2MB(argv[i]).release();
     }
 }
-
-#endif // !__WXMSW__
 
 #ifdef __WINDOWS__
 
@@ -221,9 +218,7 @@ void wxInitData::MSWInitialize()
     // point is used.
     argv = argvMSW;
 
-#ifndef __WXMSW__
     InitArgvA();
-#endif // !__WXMSW__
 }
 
 #endif // __WINDOWS__
@@ -252,9 +247,7 @@ void wxInitData::InitIfNecessary(int argcIn, wchar_t** argvIn)
         argv[i] = wxCRT_StrdupW(argvIn[i]);
     }
 
-#ifndef __WXMSW__
     InitArgvA();
-#endif // !__WXMSW__
 
 #ifdef __WINDOWS__
     // Not used in this case and shouldn't be passed to LocalFree().
@@ -271,18 +264,17 @@ void wxInitData::Free()
 
         // If argvMSW is non-null, argv must be the same value, so reset it too.
         argv = argvMSW = nullptr;
-        argc = 0;
     }
+#else
+    for ( int i = 0; i < argc; i++ )
+    {
+        free(argv[i]);
+    }
+    wxDELETEA(argv);
 #endif // __WINDOWS__
 
     if ( argc )
     {
-        for ( int i = 0; i < argc; i++ )
-        {
-            free(argv[i]);
-        }
-
-#ifndef __WXMSW__
         if ( ownsArgvA )
         {
             for ( int i = 0; i < argc; i++ )
@@ -292,9 +284,7 @@ void wxInitData::Free()
 
             wxDELETEA(argvA);
         }
-#endif // !__WXMSW__
 
-        wxDELETEA(argv);
         argc = 0;
     }
 }

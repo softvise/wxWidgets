@@ -280,6 +280,53 @@ wxGridCellWorker::~wxGridCellWorker()
 }
 
 // ----------------------------------------------------------------------------
+// wxGridCellRenderer
+// ----------------------------------------------------------------------------
+
+wxSize
+wxGridCellRenderer::GetPreferredSize(wxGrid& WXUNUSED(grid),
+                                     wxGridCellAttr& WXUNUSED(attr),
+                                     wxReadOnlyDC& WXUNUSED(dc),
+                                     int WXUNUSED(row), int WXUNUSED(col))
+{
+    wxFAIL_MSG("Must be overridden if GetBestSize() isn't.");
+    return wxSize();
+}
+
+wxSize wxGridCellRenderer::GetBestSize(wxGrid& grid,
+                                       wxGridCellAttr& attr,
+                                       wxDC& dc,
+                                       int row, int col)
+{
+    return GetPreferredSize(grid, attr, dc, row, col);
+}
+
+int wxGridCellRenderer::GetBestHeight(wxGrid& grid,
+                                      wxGridCellAttr& attr,
+                                      wxDC& dc,
+                                      int row, int col,
+                                      int WXUNUSED(width))
+{
+    return GetBestSize(grid, attr, dc, row, col).GetHeight();
+}
+
+int wxGridCellRenderer::GetBestWidth(wxGrid& grid,
+                                     wxGridCellAttr& attr,
+                                     wxDC& dc,
+                                     int row, int col,
+                                     int WXUNUSED(height))
+{
+    return GetBestSize(grid, attr, dc, row, col).GetWidth();
+}
+
+wxSize wxGridCellRenderer::GetMaxBestSize(wxGrid& grid,
+                                          wxGridCellAttr& attr,
+                                          wxDC& dc)
+{
+    return GetMaxSize(grid, attr, dc);
+}
+
+// ----------------------------------------------------------------------------
 // wxGridHeaderLabelsRenderer and related classes
 // ----------------------------------------------------------------------------
 
@@ -327,7 +374,8 @@ void wxGridHeaderLabelsRenderer::DrawLabel(const wxGrid& grid,
 void wxGridHeaderLabelsRenderer::DrawHighlighted(const wxGrid& WXUNUSED(grid),
                                                  wxDC& WXUNUSED(dc),
                                                  wxRect& WXUNUSED(rect),
-                                                 int WXUNUSED(rowOrCol)) const
+                                                 int WXUNUSED(rowOrCol),
+                                                 int WXUNUSED(flags)) const
 {
 }
 
@@ -414,7 +462,8 @@ void wxGridRowHeaderRendererDefault::DrawBorder(const wxGrid& grid,
 void wxGridRowHeaderRendererDefault::DrawHighlighted(const wxGrid& grid,
                                                      wxDC& dc,
                                                      wxRect& rect,
-                                                     int row) const
+                                                     int row,
+                                                     int flags) const
 {
     const wxColour colBg = grid.GetSelectionBackground();
 
@@ -422,14 +471,23 @@ void wxGridRowHeaderRendererDefault::DrawHighlighted(const wxGrid& grid,
     dc.SetBrush(wxBrush(colBg.ChangeLightness(130)));
     dc.DrawRectangle(rect);
 
-    const int ofs = wxPrivate::GridRowLabelDrawBorderCommonDefault(
-                        grid, dc, rect, colBg, colBg.ChangeLightness(170));
+    int ofs;
+    if ( !(flags & wxGridRowHeaderRendererDefault::Draw_Pressed) ) {
+        ofs = wxPrivate::GridRowLabelDrawBorderCommonDefault(
+            grid, dc, rect, colBg, colBg.ChangeLightness(170));
 
-    if ( !grid.IsRowLabelHighlighted(row-1) )
+        if ( !grid.IsRowLabelHighlighted(row - 1) )
+        {
+            dc.SetPen(wxPen(colBg));
+            dc.DrawLine(rect.GetLeft() + ofs - 1, rect.GetTop() - 1,
+                rect.GetRight(), rect.GetTop() - 1);
+        }
+    }
+    else
     {
-        dc.SetPen(wxPen(colBg));
-        dc.DrawLine(rect.GetLeft() + ofs - 1, rect.GetTop() - 1,
-                    rect.GetRight(), rect.GetTop() - 1);
+        // swap colors for a 'pressed' look
+        ofs = wxPrivate::GridRowLabelDrawBorderCommonDefault(
+            grid, dc, rect, colBg.ChangeLightness(170), colBg);
     }
 
     rect.Deflate(1 + ofs);
@@ -450,7 +508,8 @@ void wxGridColumnHeaderRendererDefault::DrawBorder(const wxGrid& grid,
 void wxGridColumnHeaderRendererDefault::DrawHighlighted(const wxGrid& grid,
                                                         wxDC& dc,
                                                         wxRect& rect,
-                                                        int col) const
+                                                        int col,
+                                                        int flags) const
 {
     const wxColour colBg = grid.GetSelectionBackground();
 
@@ -458,14 +517,23 @@ void wxGridColumnHeaderRendererDefault::DrawHighlighted(const wxGrid& grid,
     dc.SetBrush(wxBrush(colBg.ChangeLightness(130)));
     dc.DrawRectangle(rect);
 
-    const int ofs = wxPrivate::GridColLabelDrawBorderCommonDefault(
-                        grid, dc, rect, colBg, colBg.ChangeLightness(170));
+    int ofs;
+    if ( !(flags & wxGridRowHeaderRendererDefault::Draw_Pressed) ) {
+        ofs = wxPrivate::GridColLabelDrawBorderCommonDefault(
+            grid, dc, rect, colBg, colBg.ChangeLightness(170));
 
-    if ( !grid.IsColLabelHighlighted(col-1) )
+        if ( !grid.IsColLabelHighlighted(col - 1) )
+        {
+            dc.SetPen(wxPen(colBg));
+            dc.DrawLine(rect.GetLeft() - 1, rect.GetTop() + ofs - 1,
+                rect.GetLeft() - 1, rect.GetBottom());
+        }
+    }
+    else
     {
-        dc.SetPen(wxPen(colBg));
-        dc.DrawLine(rect.GetLeft() - 1, rect.GetTop() + ofs - 1,
-                    rect.GetLeft() - 1, rect.GetBottom());
+        // swap colors for a 'pressed' look
+        ofs = wxPrivate::GridColLabelDrawBorderCommonDefault(
+            grid, dc, rect, colBg.ChangeLightness(170), colBg);
     }
 
     rect.Deflate(1 + ofs);
@@ -7309,8 +7377,8 @@ void wxGrid::DrawRowLabel( wxDC& dc, int row )
     else
     {
         // just highlight the current row
-        dc.SetPen(wxPen(wxSystemSettings::GetColour(wxSYS_COLOUR_HIGHLIGHT)));
-        dc.DrawRectangle(rect);
+        rend.DrawHighlighted(*this, dc, rect, row, true);  // pressed
+
         rect.Deflate(GetBorder() == wxBORDER_NONE ? 2 : 1);
     }
 
@@ -7571,8 +7639,8 @@ void wxGrid::DrawColLabel(wxDC& dc, int col)
         else
         {
             // just highlight the current column
-            dc.SetPen(wxPen(wxSystemSettings::GetColour(wxSYS_COLOUR_HIGHLIGHT)));
-            dc.DrawRectangle(rect);
+            rend.DrawHighlighted(*this, dc, rect, col,
+                wxGridRowHeaderRendererDefault::Draw_Pressed);
             rect.Deflate(GetBorder() == wxBORDER_NONE ? 2 : 1);
         }
     }
@@ -7759,7 +7827,7 @@ void wxGrid::StringToLines( const wxString& value, wxArrayString& lines ) const
     }
 }
 
-void wxGrid::GetTextBoxSize( const wxDC& dc,
+void wxGrid::GetTextBoxSize( const wxReadOnlyDC& dc,
                              const wxArrayString& lines,
                              long *width, long *height ) const
 {
@@ -10355,7 +10423,7 @@ void wxGrid::SetRowSize( int row, int height )
     {
         long w, h;
         wxArrayString lines;
-        wxClientDC dc(m_rowLabelWin);
+        wxInfoDC dc(m_rowLabelWin);
         dc.SetFont(GetLabelFont());
         StringToLines(GetRowLabelValue( row ), lines);
         GetTextBoxSize( dc, lines, &w, &h );
@@ -10481,7 +10549,7 @@ void wxGrid::SetColSize( int col, int width )
         {
             long w, h;
             wxArrayString lines;
-            wxClientDC dc(m_colLabelWin);
+            wxInfoDC dc(m_colLabelWin);
             dc.SetFont(GetLabelFont());
             StringToLines(GetColLabelValue(col), lines);
             if ( GetColLabelTextOrientation() == wxHORIZONTAL )
@@ -10680,6 +10748,9 @@ wxGrid::AutoSizeColOrRow(int colOrRow, bool setAsMin, wxGridDirection direction)
             return;
     }
 
+    // We need to create wxClientDC here, and not wxInfoDC, as we have to pass
+    // a wxDC, and not just wxReadOnlyDC, to the virtual functions of
+    // wxGridCellRenderer that we call below.
     wxClientDC dc(m_gridWin);
 
     AcceptCellEditControlIfShown();
@@ -10917,8 +10988,8 @@ wxCoord wxGrid::CalcColOrRowLabelAreaMinSize(wxGridDirection direction)
     // calculate size for the rows or columns?
     const bool calcRows = direction == wxGRID_ROW;
 
-    wxClientDC dc(calcRows ? GetGridRowLabelWindow()
-                           : GetGridColLabelWindow());
+    wxInfoDC dc(calcRows ? GetGridRowLabelWindow()
+                         : GetGridColLabelWindow());
     dc.SetFont(GetLabelFont());
 
     // which dimension should we take into account for calculations?

@@ -96,6 +96,14 @@ Changes in behaviour not resulting in compilation errors
   not scale the size by the content scale factor of the DC any longer, as the
   size here is expressed in physical pixels and not in DIPs.
 
+- wxIMAGE_QUALITY_NEAREST has a different numeric value and is not the same
+  as wxIMAGE_QUALITY_NORMAL any longer, see documentation for more details.
+
+- wxTextCtrl::{Save,Load}File() will use RTF format when saving/loading files
+  with .rtf extension, and not plain text any longer, by default for the
+  platforms with RTF support. If you need to save/load plain text even for the
+  files with the .rtf extension, specify wxTEXT_TYPE_PLAIN explicitly.
+
 
 Changes in behaviour which may result in build errors
 -----------------------------------------------------
@@ -168,6 +176,11 @@ Changes in behaviour which may result in build errors
 
 - wxGTK wxDirButton::Create() doesn't have unused "wildcard" parameter any
   longer, please just remove it from your code if you used it.
+
+- Several functions now take wxReadOnlyDC instead of wxDC as argument. While
+  any code calling these functions keeps compiling and working, classes that
+  override these functions must be updated to use the new argument type too.
+  Simply replacing wxDC with wxReadOnlyDC should be sufficient.
 
 
 3.3.0: (released 2022-??-??)
