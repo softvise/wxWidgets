@@ -27,6 +27,10 @@ Changes in behaviour not resulting in compilation errors
 - wxMSW doesn't support versions of Microsoft Windows before Windows 7. If you
   need Windows XP or Vista support, please use wxWidgets 3.2.
 
+- Default exit code in case of fatal error is now consistently 255, including
+  when using MSVC for which it was 127 previously. Use wxApp::SetErrorExitCode()
+  and wxApp::SetFatalErrorExitCode() to change this to old value if needed.
+
 - wxGLCanvas doesn't use multi-sampling by default any longer, please use
   wxGLAttributes::Samplers(1).SampleBuffers(4) explicitly if you need to keep
   using the same attributes that were previously used by default.
@@ -103,6 +107,11 @@ Changes in behaviour not resulting in compilation errors
   with .rtf extension, and not plain text any longer, by default for the
   platforms with RTF support. If you need to save/load plain text even for the
   files with the .rtf extension, specify wxTEXT_TYPE_PLAIN explicitly.
+
+- wxClientDC and wxPaintDC now correctly offset their origin by wxFrame
+  toolbar, if any. This is consistent with the behaviour of the other ports
+  but may require removing any compensation for not doing this before that may
+  be present in the application code.
 
 
 Changes in behaviour which may result in build errors
@@ -181,6 +190,11 @@ Changes in behaviour which may result in build errors
   any code calling these functions keeps compiling and working, classes that
   override these functions must be updated to use the new argument type too.
   Simply replacing wxDC with wxReadOnlyDC should be sufficient.
+
+- wxSizer::Detach() takes wxWindowBase pointer now instead of wxWindow.
+  This only matters if you override this virtual function in your own classes
+  deriving from wxSizer, please change the function in the derived class to
+  take wxWindowBase pointer too in this case.
 
 
 3.3.0: (released 2022-??-??)

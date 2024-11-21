@@ -518,7 +518,7 @@ struct BMPDesc
 // The stream must be positioned at the start of the bitmap data
 // (i.e., after any palette data)
 bool LoadBMPData(wxImage * image, const BMPDesc& desc,
-                 wxInputStream& stream, bool verbose)
+                 wxInputStream& stream, bool verbose, bool isBmp)
 {
     const int width = desc.width;
     int height = desc.height;
@@ -562,24 +562,19 @@ bool LoadBMPData(wxImage * image, const BMPDesc& desc,
         return false;
     }
 
-    unsigned char *alpha;
-    if ( bpp == 32 )
+    unsigned char* alpha = nullptr;
+    if (bpp == 32 && (!isBmp || desc.comp == BI_BITFIELDS))
     {
-        // tell the image to allocate an alpha buffer
         image->SetAlpha();
         alpha = image->GetAlpha();
-        if ( !alpha )
+        if (!alpha)
         {
-            if ( verbose )
+            if (verbose)
             {
                 wxLogError(_("BMP: Couldn't allocate memory."));
             }
             return false;
         }
-    }
-    else // no alpha
-    {
-        alpha = nullptr;
     }
 
     // Reading the palette, if it exists:
@@ -705,13 +700,9 @@ bool LoadBMPData(wxImage * image, const BMPDesc& desc,
 
     int linesize = ((width * bpp + 31) / 32) * 4;
 
-    // flag indicating if we have any not fully transparent alpha values: this
-    // is used to account for the bitmaps which use 32bpp format (normally
-    // meaning that they have alpha channel) but have only zeroes in it so that
-    // without this hack they appear fully transparent -- and as this is
-    // unlikely intentional, we consider that they don't have alpha at all in
-    // this case (see #10915)
-    bool hasValidAlpha = false;
+    // flag used to detect fully transparent alpha channels, as
+    // Windows behavior for ICO is to ignore alpha in that case
+    bool hasNonTransparentAlpha = false;
 
     for ( int row = 0; row < height; row++ )
     {
@@ -978,8 +969,8 @@ bool LoadBMPData(wxImage * image, const BMPDesc& desc,
                     temp = (unsigned char)((aDword & amask) >> ashift);
                     alpha[line * width + column] = temp;
 
-                    if ( temp != wxALPHA_TRANSPARENT )
-                        hasValidAlpha = true;
+                    if (temp != wxALPHA_TRANSPARENT)
+                        hasNonTransparentAlpha = true;
                 }
                 column++;
             }
@@ -994,10 +985,9 @@ bool LoadBMPData(wxImage * image, const BMPDesc& desc,
 
     image->SetMask(false);
 
-    // check if we had any valid alpha values in this bitmap
-    if ( alpha && !hasValidAlpha )
+    if (alpha && !isBmp && !hasNonTransparentAlpha)
     {
-        // we didn't, so finally discard the alpha channel completely
+        // alpha is ignored for ICO if it is all zeros
         image->ClearAlpha();
     }
 
@@ -1296,7 +1286,7 @@ bool wxBMPHandler::LoadDib(wxImage *image, wxInputStream& stream,
     }
 
     //read DIB; this is the BMP image or the XOR part of an icon image
-    if ( !LoadBMPData(image, desc, stream, verbose) )
+    if ( !LoadBMPData(image, desc, stream, verbose, IsBmp) )
     {
         if (verbose)
         {
@@ -1317,7 +1307,7 @@ bool wxBMPHandler::LoadDib(wxImage *image, wxInputStream& stream,
 
         //there is no palette, so we will create one
         wxImage mask;
-        if ( !LoadBMPData(&mask, descMask, stream, verbose) )
+        if ( !LoadBMPData(&mask, descMask, stream, verbose, IsBmp) )
         {
             if (verbose)
             {

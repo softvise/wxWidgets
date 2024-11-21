@@ -1550,6 +1550,16 @@ public:
         m_tabCtrlHeight = h;
     }
 
+    // As we don't have a valid HWND, the base class version doesn't work for
+    // this window, so override it to return the appropriate DPI.
+    wxSize GetDPI() const override
+    {
+        if (!m_tabs)
+            return wxWindow::GetDPI();
+
+        return m_tabs->GetDPI();
+    }
+
 protected:
     void DoSetSize(int x, int y,
                    int width, int height,
@@ -1799,6 +1809,16 @@ wxAuiNotebook::~wxAuiNotebook()
 void wxAuiNotebook::SetArtProvider(wxAuiTabArt* art)
 {
     m_tabs.SetArtProvider(art);
+
+    // If the art provider implements GetXXXFont() functions, use them.
+    //
+    // Otherwise keep using our own fonts.
+    wxFont font = art->GetNormalFont();
+    if ( font.IsOk() )
+        m_normalFont = font;
+    font = art->GetSelectedFont();
+    if ( font.IsOk() )
+        m_selectedFont = font;
 
     // Update the height and do nothing else if it did something but otherwise
     // (i.e. if the new art provider uses the same height as the old one) we
@@ -2608,7 +2628,6 @@ void wxAuiNotebook::OnTabDragMotion(wxAuiNotebookEvent& evt)
 {
     wxPoint screen_pt = ::wxGetMousePosition();
     wxPoint client_pt = ScreenToClient(screen_pt);
-    wxPoint zero(0,0);
 
     wxAuiTabCtrl* src_tabs = (wxAuiTabCtrl*)evt.GetEventObject();
     wxAuiTabCtrl* dest_tabs = GetTabCtrlFromPoint(client_pt);
@@ -2690,9 +2709,7 @@ void wxAuiNotebook::OnTabDragMotion(wxAuiNotebookEvent& evt)
 
                 if (nb != this)
                 {
-                    wxRect hint_rect = tab_ctrl->GetClientRect();
-                    tab_ctrl->ClientToScreen(&hint_rect.x, &hint_rect.y);
-                    m_mgr.ShowHint(hint_rect);
+                    m_mgr.UpdateHint(tab_ctrl->GetScreenRect());
                     return;
                 }
             }
@@ -2726,13 +2743,11 @@ void wxAuiNotebook::OnTabDragMotion(wxAuiNotebookEvent& evt)
 
     if (dest_tabs)
     {
-        wxRect hint_rect = dest_tabs->GetRect();
-        ClientToScreen(&hint_rect.x, &hint_rect.y);
-        m_mgr.ShowHint(hint_rect);
+        m_mgr.UpdateHint(dest_tabs->GetScreenRect());
     }
     else
     {
-        m_mgr.DrawHintRect(m_dummyWnd, client_pt, zero);
+        m_mgr.DrawHintRect(m_dummyWnd, client_pt);
     }
 }
 
@@ -2891,10 +2906,8 @@ void wxAuiNotebook::OnTabEndDrag(wxAuiNotebookEvent& evt)
         }
         else
         {
-            wxPoint zero(0,0);
             wxRect rect = m_mgr.CalculateHintRect(m_dummyWnd,
-                                                  mouse_client_pt,
-                                                  zero);
+                                                  mouse_client_pt);
             if (rect.IsEmpty())
             {
                 // there is no suitable drop location here, exit out
