@@ -458,21 +458,6 @@ TEST_CASE_METHOD(RequestFixture,
 }
 
 TEST_CASE_METHOD(RequestFixture,
-    "WebRequest::Headers", "[net][webrequest][headers]")
-{
-    if ( !InitBaseURL() )
-        return;
-
-    Create("headers");
-    request.SetHeader("One", "1");
-    request.AddHeader("Two", "2");
-    Run();
-
-    CheckExpectedJSON( request.GetResponse().AsString(), "One", "1" );
-    CheckExpectedJSON( request.GetResponse().AsString(), "Two", "2" );
-}
-
-TEST_CASE_METHOD(RequestFixture,
                  "WebRequest::Get::Param", "[net][webrequest][get]")
 {
     if ( !InitBaseURL() )
@@ -786,6 +771,21 @@ TEST_CASE_METHOD(RequestFixture,
     CHECK( stateFromEvent == wxWebRequest::State_Completed );
     CHECK( statusFromEvent == 200 );
     CHECK( responseStringFromEvent == "Still alive!" );
+}
+
+TEST_CASE_METHOD(RequestFixture, "WebRequest::LifeTime", "[net][webrequest]")
+{
+    if ( !InitBaseURL() )
+        return;
+
+    Create("status/200");
+    Run();
+
+    // Close the session before the request is destroyed: this shouldn't result
+    // in a crash.
+    wxWebSession::GetDefault().Close();
+
+    CHECK( request.GetResponse().GetStatus() == 200 );
 }
 
 class SyncRequestFixture : public BaseRequestFixture
@@ -1207,7 +1207,7 @@ TEST_CASE_METHOD(SyncRequestFixture,
     DumpResponse(request.GetResponse());
 }
 
-using wxWebRequestHeaderMap = std::unordered_map<wxString, std::vector<wxString>>;
+using wxWebRequestHeaderMap = std::unordered_map<wxString, wxString>;
 
 namespace wxPrivate
 {
@@ -1225,8 +1225,7 @@ TEST_CASE("WebRequestUtils", "[net][webrequest]")
     value = wxPrivate::SplitParameters(header, params);
     CHECK( value == "multipart/mixed" );
     CHECK( params.size() == 1 );
-    REQUIRE( !params["boundary"].empty() );
-    CHECK( params["boundary"].back() == "MIME_boundary_01234567" );
+    CHECK( params["boundary"] == "MIME_boundary_01234567" );
 }
 
 // This is not a real test, run it to see the version of the library used.

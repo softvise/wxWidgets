@@ -753,8 +753,7 @@ wxWebRequest::Result wxWebRequestWinHTTP::SendRequest()
           header != m_headers.end();
           ++header )
     {
-        for ( const wxString& value : header->second )
-            allHeaders.append(wxString::Format("%s: %s\n", header->first, value));
+        allHeaders.append(wxString::Format("%s: %s\n", header->first, header->second));
     }
 
     if ( m_dataSize )
@@ -996,7 +995,7 @@ bool wxWebSessionWinHTTP::Open()
 
     m_handle = wxWinHTTP::WinHttpOpen
                  (
-                    GetHeaders().find("User-Agent")->second.back().wc_str(),
+                    GetHeaders().find("User-Agent")->second.wc_str(),
                     accessType,
                     proxyName,
                     WINHTTP_NO_PROXY_BYPASS,
@@ -1121,7 +1120,7 @@ bool wxWebSessionWinHTTP::SetProxy(const wxWebProxy& proxy)
         }
 
         // Final step: WinHttpOpen() doesn't accept trailing slashes in the URL
-        // neither (it just fails with ERROR_INVALID_PARAMETER), so remove them.
+        // either (it just fails with ERROR_INVALID_PARAMETER), so remove them.
         while ( m_proxyURLWithoutCredentials.Last() == '/' )
             m_proxyURLWithoutCredentials.RemoveLast();
 

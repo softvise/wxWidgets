@@ -8,6 +8,87 @@
 /////////////////////////////////////////////////////////////////////////////
 
 /**
+    Description of a docked element layout.
+
+    The fields in this struct are shared by wxAuiPaneLayoutInfo and
+    wxAuiTabLayoutInfo and contain information about the layout of a docked
+    pane or tab layout.
+
+    @since 3.3.0
+*/
+struct wxAuiDockLayoutInfo
+{
+    /// Direction of the dock containing the pane.
+    int dock_direction   = wxAUI_DOCK_LEFT;
+
+    /// Layer of the dock containing the pane.
+    int dock_layer       = 0;
+
+    /// Row of the dock containing the pane.
+    int dock_row         = 0;
+
+    /// Position of the pane in the dock containing it.
+    int dock_pos         = 0;
+
+    /// Relative proportion of the dock allocated to this pane.
+    int dock_proportion  = 0;
+
+    /// Size of the containing dock.
+    int dock_size        = 0;
+};
+
+/**
+    Contains information about the layout of a tab control in a wxAuiNotebook.
+
+    This includes where it is docked, via the fields inherited from
+    wxAuiDockLayoutInfo, and the order of pages in it.
+
+    @since 3.3.0
+*/
+struct wxAuiTabLayoutInfo : wxAuiDockLayoutInfo
+{
+    /**
+        Indices of the pages in this tab control in their order on screen.
+
+        If this vector is empty, it means that the tab control contains all
+        notebook pages in natural order.
+    */
+    std::vector<int> pages;
+};
+
+/**
+    Description of user-modifiable pane layout information.
+
+    This struct is used with wxAuiSerializer and wxAuiDeserializer to store the
+    pane layout. Its fields, including the inherited ones from
+    wxAuiDockLayoutInfo, have the same meaning as the corresponding fields in
+    wxAuiPaneInfo (with the exception of `is_maximized`), but it doesn't
+    contain the fields that it wouldn't make sense to serialize.
+
+    @since 3.3.0
+ */
+struct wxAuiPaneLayoutInfo : wxAuiDockLayoutInfo
+{
+    /**
+        Ctor sets the name, which is always required.
+     */
+    explicit wxAuiPaneLayoutInfo(wxString name);
+
+    /// Unique name of the pane.
+    wxString name;
+
+    /// Position of the pane when floating, may be invalid.
+    wxPoint floating_pos = wxDefaultPosition;
+
+    /// Size of the pane when floating, may be invalid.
+    wxSize floating_size = wxDefaultSize;
+
+
+    /// True if the pane is currently maximized.
+    bool is_maximized   = false;
+};
+
+/**
     @class wxAuiSerializer
 
     wxAuiSerializer is used by wxAuiManager::SaveLayout() to store layout
@@ -67,7 +148,7 @@ public:
         it does _not_ need to perform any scaling itself to ensure that the
         stored values are restored correctly if the resolution changes.
      */
-    virtual void SavePane(const wxAuiPaneInfo& pane) = 0;
+    virtual void SavePane(const wxAuiPaneLayoutInfo& pane) = 0;
 
     /**
         Called after the last call to SavePane().
@@ -77,30 +158,55 @@ public:
     virtual void AfterSavePanes();
 
     /**
-        Called before starting to save information about the docks.
+        Called before starting to save information about the notebooks.
+
+        Does nothing by default.
+
+        Note that this function is called after AfterSavePanes() but may not be
+        called at all if there are no panes containing wxAuiNotebook.
+     */
+    virtual void BeforeSaveNotebooks();
+
+    /**
+        Called before starting to save information about the tabs in the
+        notebook in the AUI pane with the given name.
+
+        This function needs to be overridden to keep record of the notebook for
+        which SaveNotebookTabControl() will be called next. Of course, if
+        saving notebook layout is unnecessary, e.g. because the program doesn't
+        use wxAuiNotebook at all, the implementation can be trivial and just do
+        nothing.
+
+        This function is called one or more times after BeforeSaveNotebooks().
+     */
+    virtual void BeforeSaveNotebook(const wxString& name) = 0;
+
+    /**
+        Called to save information about a single tab control in the given
+        notebook.
+
+        This function will be called for all tab controls in the notebook after
+        BeforeSaveNotebook().
+
+        As with that function, it has to be implemented, but can simply do
+        nothing if saving notebook layout is not necessary.
+     */
+    virtual void SaveNotebookTabControl(const wxAuiTabLayoutInfo& tab) = 0;
+
+    /**
+        Called after saving information about all the pages of the notebook in
+        the AUI pane with the given name.
 
         Does nothing by default.
      */
-    virtual void BeforeSaveDocks();
+    virtual void AfterSaveNotebook();
 
     /**
-        Save information about the given dock.
-
-        This function will be called for all docks and must be implemented to
-        save their data in a format from which it can be restored later using a
-        matching wxAuiDeserializer implementation.
-
-        As with SavePane(), the coordinates in @a dock are always in DIPs and
-        this function does _not_ need to perform any scaling itself.
-     */
-    virtual void SaveDock(const wxAuiDockInfo& dock) = 0;
-
-    /**
-        Called after the last call to SaveDock().
+        Called after the last call to SaveNotebook().
 
         Does nothing by default.
      */
-    virtual void AfterSaveDocks();
+    virtual void AfterSaveNotebooks();
 
     /**
         Called after saving everything.
@@ -164,7 +270,20 @@ public:
         is no pane with the matching name, CreatePaneWindow() is called to
         allow creating it on the fly.
      */
-    virtual std::vector<wxAuiPaneInfo> LoadPanes() = 0;
+    virtual std::vector<wxAuiPaneLayoutInfo> LoadPanes() = 0;
+
+    /**
+        Load information about the notebook tabs previously saved by
+        wxAuiSerializer::SaveNotebookTabControl().
+
+        The pane with the name @a name is guaranteed to exist in the layout and
+        have wxAuiNotebook as the associated window.
+
+        If restoring the notebook layout is not necessary, this function can
+        just return an empty vector.
+     */
+    virtual std::vector<wxAuiTabLayoutInfo>
+    LoadNotebookTabs(const wxString& name) = 0;
 
     /**
         Create the window to be managed by the given pane if necessary.
@@ -175,16 +294,13 @@ public:
 
         If this function returns @NULL, as it does by default, the pane is not
         added to the manager.
-     */
-    virtual wxWindow* CreatePaneWindow(const wxAuiPaneInfo& pane);
 
-    /**
-        Load information about all the docks previously saved with SaveDock().
-
-        As with LoadPanes(), this function doesn't need to perform any scaling
-        itself.
+        If the function does create a new window, it should typically modify @a
+        pane parameter to fill in the fields such as `caption` or `icon` that
+        wouldn't normally be serialized and so wouldn't be restored by
+        LoadPanes().
      */
-    virtual std::vector<wxAuiDockInfo> LoadDocks() = 0;
+    virtual wxWindow* CreatePaneWindow(wxAuiPaneInfo& pane);
 
     /**
         Called after restoring everything.

@@ -16,11 +16,10 @@
 
 #include <memory>
 #include <unordered_map>
-#include <vector>
 
 class WXDLLIMPEXP_FWD_BASE wxURI;
 
-using wxWebRequestHeaderMap = std::unordered_map<wxString, std::vector<wxString>>;
+using wxWebRequestHeaderMap = std::unordered_map<wxString, wxString>;
 
 // Trace mask used for the messages in wxWebRequest code.
 #define wxTRACE_WEBREQUEST "webrequest"
@@ -63,15 +62,7 @@ public:
     virtual ~wxWebRequestImpl() = default;
 
     void SetHeader(const wxString& name, const wxString& value)
-    {
-        if (value.empty())
-            m_headers.erase(name);
-        else
-            m_headers[name] = { value };
-    }
-
-    void AddHeader(const wxString& name, const wxString& value)
-        { m_headers[name].push_back(value); }
+    { m_headers[name] = value; }
 
     void SetMethod(const wxString& method) { m_method = method; }
 
@@ -107,7 +98,7 @@ public:
     wxWebSession& GetSession() const { return *m_session; }
 
     // This one can be always called.
-    wxWebSessionImpl& GetSessionImpl() const { return m_sessionImpl; }
+    wxWebSessionImpl& GetSessionImpl() const { return *m_sessionImpl; }
 
     wxWebRequest::State GetState() const { return m_state; }
 
@@ -198,7 +189,11 @@ private:
     // SetState() when leaving it.
     void ProcessStateEvent(wxWebRequest::State state, const wxString& failMsg);
 
-    wxWebSessionImpl& m_sessionImpl;
+    // This is a shared pointer and not just a reference to ensure that the
+    // session stays alive as long as there are any requests using it, as
+    // allowing it to die first would result in a crash when destroying the
+    // request later.
+    wxWebSessionImplPtr m_sessionImpl;
 
     // These parameters are only valid for async requests.
     wxWebSession* const m_session;
@@ -330,16 +325,8 @@ public:
     bool SetBaseURL(const wxString& url);
     const wxURI* GetBaseURL() const;
 
-    void SetCommonHeader(const wxString& name, const wxString& value)
-    {
-        if (value.empty())
-            m_headers.erase(name);
-        else
-            m_headers[name] = { value };
-    }
-
     void AddCommonHeader(const wxString& name, const wxString& value)
-        { m_headers[name].push_back(value); }
+        { m_headers[name] = value; }
 
     void SetTempDir(const wxString& dir) { m_tempDir = dir; }
 
