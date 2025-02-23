@@ -23,6 +23,7 @@
 
 #include "wx/statline.h"
 #include "wx/dcbuffer.h"
+#include "wx/frame.h"
 #include "wx/sizer.h"
 #include "wx/image.h"
 #include "wx/settings.h"
@@ -264,13 +265,12 @@ void wxAuiGenericToolBarArt::DrawLabel(
     // set the clipping region
     wxRect clipRect = rect;
     clipRect.width -= 1;
-    dc.SetClippingRegion(clipRect);
+    wxDCClipper clipper(dc, clipRect);
 
     int textX, textY;
     textX = rect.x + 1;
     textY = rect.y + (rect.height-textHeight)/2;
     dc.DrawText(item.GetLabel(), textX, textY);
-    dc.DestroyClippingRegion();
 }
 
 
@@ -1497,6 +1497,16 @@ bool wxAuiToolBar::SetFont(const wxFont& font)
 
 void wxAuiToolBar::SetHoverItem(wxAuiToolBarItem* pitem)
 {
+    if ( wxFrame* frame = wxDynamicCast(wxGetTopLevelParent(this), wxFrame) )
+    {
+        wxString help;
+        if (pitem)
+        {
+            help = pitem->GetLongHelp();
+        }
+        frame->DoGiveHelp(help, pitem);
+    }
+
     if (pitem && (pitem->m_state & wxAUI_BUTTON_STATE_DISABLED))
         pitem = nullptr;
 

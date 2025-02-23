@@ -22,6 +22,9 @@ enum wxAuiNotebookOption
     wxAUI_NB_CLOSE_ON_ALL_TABS   = 1 << 12,
     wxAUI_NB_MIDDLE_CLICK_CLOSE  = 1 << 13,
 
+    /// @since 3.3.0
+    wxAUI_NB_MULTILINE           = 1 << 14,
+
     wxAUI_NB_DEFAULT_STYLE = wxAUI_NB_TOP |
                              wxAUI_NB_TAB_SPLIT |
                              wxAUI_NB_TAB_MOVE |
@@ -41,8 +44,26 @@ enum wxAuiNotebookOption
 */
 struct wxAuiNotebookPosition
 {
-    wxAuiTabCtrl* tabctrl = nullptr;
-    int page = wxNOT_FOUND;
+    /**
+        Check if the position is valid.
+
+        This overloaded operator allows to use objects of this class in
+        conditional statements, e.g.
+
+        @code
+        if ( const auto pos = book->GetPagePosition(page) )
+        {
+            // pos is valid, can use its tabCtrl and tabIdx members here
+        }
+        @endcode
+     */
+    explicit operator bool() const;
+
+    /// Tab control containing the page or nullptr if the position is invalid.
+    wxAuiTabCtrl* tabCtrl = nullptr;
+
+    /// Index of the page in this tab control or wxNOT_FOUND if invalid.
+    int tabIdx = wxNOT_FOUND;
 };
 
 
@@ -67,28 +88,58 @@ struct wxAuiNotebookPosition
 
     @section auibook_tabs Multiple Tab Controls
 
-    By default, wxAuiNotebook uses a single tab control for all tabs, however
-    when wxAUI_NB_TAB_SPLIT style is used (which is the case by default), the
+    Initially, wxAuiNotebook creates the main tab control, which can be
+    retrieved using GetMainTabCtrl(), and uses it for all tabs. However
+    when ::wxAUI_NB_TAB_SPLIT style is used (which is the case by default), the
     user will be able to drag pages out of it and create new tab controls, that
     can then themselves be dragged to be docked in a different place inside the
-    notebook. Also, whether wxAUI_NB_TAB_SPLIT is specified or not, Split()
+    notebook. Also, whether ::wxAUI_NB_TAB_SPLIT is specified or not, Split()
     function can always be used to create new tab controls programmatically.
 
     When using multiple tab controls, exactly one of them is active at any
     time. This tab control can be retrieved by calling GetActiveTabCtrl() and
-    is always used for appending or inserting new pages.
+    is always used for appending or inserting new pages. You can also use
+    GetAllTabCtrls() to get all existing tab controls.
 
 
-    @section auibook_order Pages Order
+    @section auibook_order Pages Indices and Positions
 
-    The logical order of the pages in the notebook is determined by the order
-    in which they are added to it, i.e. the first page added has index 0, the
-    second one has index 1, and so on. Since wxWidgets 3.3.0 this order is not
-    affected any longer by reodering the visual order of the pages in the UI,
-    which can be done by dragging them around if the wxAUI_NB_TAB_MOVE style is
-    used (which is the case by default).
+    Each notebook page has its logical index, which is determined by the order
+    in which the pages are added, i.e. the first page added has index 0, the
+    second one has index 1, and so on, but also has its physical display
+    position, which corresponds to the position at which it is displayed.
+    Initially the indices and positions are the same for all pages, but they
+    may become different if the user reorders the pages by dragging them around
+    (which is possible when ::wxAUI_NB_TAB_MOVE style, included in the default
+    notebook flags, is on). Also note that it's possible to have multiple pages
+    with the same physical position, in different tab controls (see the
+    previous section), e.g. each first page in each tab control has physical
+    position 0, but there is only one page with logical index 0.
 
-    To get the visual position of the page, GetPagePosition() can be used.
+    All functions taking a page index parameter, such as SetPageText(), work
+    with logical indices. Similarly, functions returning a page index, such as
+    GetSelection(), also always return logical indices. To get the physical
+    position of a single page, use GetPagePosition() and to get all pages in
+    some tab control in their physical, display order GetPagesInDisplayOrder()
+    can be used.
+
+
+    @section auibook_layout Pages Layout
+
+    When the user can change the notebook layout interactively, i.e. when
+    ::wxAUI_NB_TAB_MOVE and/or ::wxAUI_NB_TAB_SPLIT styles are used, it can be
+    useful to remember the current layout on program exit and restore it when
+    it is restarted. This can be done by saving, and reloading, the layout of
+    the entire wxAuiManager containing this notebook using
+    wxAuiManager::SaveLayout() and wxAuiManager::LoadLayout(), but it can also
+    be done just for the given notebook, without affecting the other panes,
+    using SaveLayout() and LoadLayout() functions of this class.
+
+    Using them is similar to using wxAuiManager functions, except they only
+    require implementing wxAuiBookSerializer or wxAuiBookDeserializer
+    interface, which is a subset of the full wxAuiSerializer or
+    wxAuiDeserializer. The @ref page_samples_aui shows how to use them.
+
 
     @beginStyleTable
     @style{wxAUI_NB_DEFAULT_STYLE}
@@ -105,6 +156,7 @@ struct wxAuiNotebookPosition
            With this style, all tabs have the same width.
     @style{wxAUI_NB_SCROLL_BUTTONS}
            With this style, left and right scroll buttons are displayed.
+           Note that this style is ignored if wxAUI_NB_MULTILINE is used.
     @style{wxAUI_NB_WINDOWLIST_BUTTON}
            With this style, a drop-down list of windows is available.
     @style{wxAUI_NB_CLOSE_BUTTON}
@@ -119,6 +171,11 @@ struct wxAuiNotebookPosition
            With this style, tabs are drawn along the top of the notebook.
     @style{wxAUI_NB_BOTTOM}
            With this style, tabs are drawn along the bottom of the notebook.
+    @style{wxAUI_NB_MULTILINE}
+           If this style is specified and all the tabs don't fit in the visible
+           area, multiple rows of tabs are used instead of adding a button
+           allowing to scroll them. This style is only available in wxWidgets
+           3.3.0 or later.
     @endStyleTable
 
     @beginEventEmissionTable{wxAuiNotebookEvent}
@@ -211,7 +268,11 @@ public:
     virtual bool AddPage(wxWindow *page, const wxString &text, bool select, int imageId);
 
     /**
-        Sets the selection to the next or previous page.
+        Sets the selection to the next or previous page in the same tab control.
+
+        This function sets selection to the next (if @a forward is @a true) or
+        previous (otherwise) page after or before the currently selected one in
+        but without leaving the current tab control.
     */
     void AdvanceSelection(bool forward = true);
 
@@ -312,6 +373,23 @@ public:
     wxAuiNotebookPosition GetPagePosition(size_t page) const;
 
     /**
+        Returns indices of all pages in the given tab control.
+
+        The pages are returned in the order they are displayed in the tab,
+        which may be different from the default order if they were rearranged
+        by the user.
+
+        The @a tabCtrl must be valid, see GetActiveTabCtrl() and
+        GetAllTabCtrls() for the functions that can be used to get the tab
+        control to use.
+
+        The returned vector contains the logical page indices.
+
+        @since 3.3.0
+     */
+    std::vector<size_t> GetPagesInDisplayOrder(wxAuiTabCtrl* tabCtrl) const;
+
+    /**
         Returns the tab label for the page.
     */
     wxString GetPageText(size_t page) const;
@@ -336,6 +414,7 @@ public:
     /**
         InsertPage() is similar to AddPage, but allows the ability to specify the
         insert location.
+
         If the @a select parameter is @true, calling this will generate a page change
         event.
 
@@ -344,28 +423,26 @@ public:
         the notebook, in which case this function is equivalent to AddPage(),
         but can't be strictly greater than it.
 
+        Note that if you want to insert the page at the specified physical
+        position, e.g. at the beginning of the current tab control, you need to
+        use GetPagesInDisplayOrder() to get the logical page index
+        corresponding to the position 0 and then pass this index to this
+        function.
+
         Note that if the page with the given index is not in the currently
         active tab control, the new page will be added at the end of the active
         tab instead of being inserted into another tab control.
-    */
-    bool InsertPage(size_t page_idx, wxWindow* page,
-                    const wxString& caption,
-                    bool select = false,
-                    const wxBitmapBundle& bitmap = wxBitmapBundle());
-
-    /**
-        Inserts a new page at the specified position.
 
         @param index
-            Specifies the position for the new page.
+            Specifies the page before which the new page should be inserted.
         @param page
             Specifies the new page.
         @param text
             Specifies the text for the new page.
         @param select
             Specifies whether the page should be selected.
-        @param imageId
-            Specifies the optional image index for the new page.
+        @param bitmap
+            Specifies the optional bitmap to use for the new page.
 
         @return @true if successful, @false otherwise.
 
@@ -374,13 +451,60 @@ public:
         @see AddPage()
         @since 2.9.3
     */
+    bool InsertPage(size_t index, wxWindow* page,
+                    const wxString& text,
+                    bool select = false,
+                    const wxBitmapBundle& bitmap = wxBitmapBundle());
+
+    /// @overload
     virtual bool InsertPage(size_t index, wxWindow *page, const wxString &text,
                             bool select, int imageId);
+
+    /**
+        Load the previously saved layout of the notebook.
+
+        This function is used to restore the layout previously saved by
+        SaveLayout().
+
+        @param name
+            Used as argument for wxAuiBookDeserializer::LoadNotebookTabs()
+            call.
+        @param deserializer
+            The object to use for restoring the layout.
+
+        @see wxAuiManager::LoadLayout()
+
+        @since 3.3.0
+     */
+    void LoadLayout(const wxString& name, wxAuiBookDeserializer& deserializer);
 
     /**
         Removes a page, without deleting the window pointer.
     */
     bool RemovePage(size_t page);
+
+    /**
+        Save the layout of the notebook using the provided serializer.
+
+        The notebook layout includes the number and positions of all the tab
+        controls as well as the pages contained in each of them and their
+        order.
+
+        The serializer defines how exactly this information is saved: it can
+        use any form of serialization, e.g. XML or JSON, to do it, with the
+        only requirement being that LoadLayout() should be able to restore it
+        from the same @a name.
+
+        @param name
+            Used as argument for wxAuiBookSerializer::BeforeSaveNotebook() call.
+        @param serializer
+            The object to use for saving the layout.
+
+        @see wxAuiManager::SaveLayout()
+
+        @since 3.3.0
+     */
+    void SaveLayout(const wxString& name, wxAuiBookSerializer& serializer) const;
 
     /**
         Sets the art provider to be used by the notebook.
@@ -473,6 +597,10 @@ public:
 
         Specifying -1 as the height will return the control to its default auto-sizing
         behaviour.
+
+        If the control uses @c wxAUI_NB_MULTILINE style, the @a height
+        parameter specifies the height of a single row of tabs and not the
+        combined height of all rows.
     */
     virtual void SetTabCtrlHeight(int height);
 
@@ -535,9 +663,37 @@ public:
     /**
         Returns active tab control for this notebook.
 
+        Active tab control is the one containing the currently selected page.
+        If there is no selected page, the main tab control is returned, see
+        GetMainTabCtrl().
+
+        @return Non-@NULL pointer to either the active or main tab control.
+
         @since 3.1.4
     */
     wxAuiTabCtrl* GetActiveTabCtrl();
+
+    /**
+        Returns all tab controls for this notebook.
+
+        @return Vector of all tab controls, never empty as it always contains
+            at least the main tab control.
+
+        @since 3.3.0
+    */
+    std::vector<wxAuiTabCtrl*> GetAllTabCtrls();
+
+    /**
+        Returns the main tab control for this notebook.
+
+        The main tab control is the one created by the notebook itself
+        initially to contain the pages added to it.
+
+        @return Non-@NULL pointer to the main tab control.
+
+        @since 3.3.0
+     */
+    wxAuiTabCtrl* GetMainTabCtrl();
 
     /**
         Finds tab control associated with a given window and its tab index.
@@ -553,7 +709,10 @@ public:
 /**
     @class wxAuiNotebookPage
 
-    A simple class which holds information about the notebook's pages and their state.
+    Holds information about a page in wxAuiNotebook.
+
+    An object of this class is notably passed to wxAuiTabArt::DrawTab() and is
+    used by it to render the pages tab accordingly.
 
     @library{wxaui}
     @category{aui}
@@ -561,12 +720,23 @@ public:
 class wxAuiNotebookPage
 {
 public:
-    wxWindow* window;     // page's associated window
-    wxString caption;     // caption displayed on the tab
-    wxString tooltip;     // tooltip displayed when hovering over tab title
-    wxBitmapBundle bitmap;// tab's bitmap
-    wxRect rect;          // tab's hit rectangle
-    bool active;          // true if the page is currently active
+    /// Window shown on this page.
+    wxWindow* window = nullptr;
+
+    /// Text displayed on the tab.
+    wxString caption;
+
+    /// Tooltip displayed when hovering over tab title.
+    wxString tooltip;
+
+    /// Bitmap shown in the tab if valid.
+    wxBitmapBundle bitmap;
+
+    /// True if the page is the currently selected page.
+    bool active = false;
+
+    // The rest of the fields are used internally by wxAUI and are
+    // intentionally not documented here.
 };
 
 /**
@@ -654,6 +824,13 @@ public:
     void SetFlags(unsigned int flags);
     unsigned int GetFlags() const;
 
+    /**
+        Returns @true if the given flag is set.
+
+        @since 3.3.0
+    */
+    bool IsFlagSet(unsigned int flag) const;
+
     bool AddPage(const wxAuiNotebookPage& info);
     bool InsertPage(const wxAuiNotebookPage& info, size_t idx);
     bool MovePage(wxWindow* page, size_t newIdx);
@@ -663,8 +840,19 @@ public:
     bool SetActivePage(size_t page);
     void SetNoneActive();
     int GetActivePage() const;
-    wxWindow* TabHitTest(int x, int y) const;
-    const wxAuiTabContainerButton* ButtonHitTest(int x, int y) const;
+    struct HitTestResult
+    {
+        explicit operator bool() const;
+        wxWindow* window = nullptr;
+        int pos = wxNOT_FOUND;
+    };
+    enum HitTestFlags
+    {
+        HitTest_Default = 0,
+        HitTest_AllowAfterTab = 1
+    };
+    HitTestResult TabHitTest(const wxPoint& pt, int flags = HitTest_Default) const;
+    const wxAuiTabContainerButton* ButtonHitTest(const wxPoint& pt) const;
     wxWindow* GetWindowFromIdx(size_t idx) const;
     int GetIdxFromWindow(const wxWindow* page) const;
     size_t GetPageCount() const;
@@ -803,6 +991,27 @@ public:
     virtual wxSize GetTabSize(wxDC& dc, wxWindow* wnd, const wxString& caption,
                               const wxBitmapBundle& bitmap, bool active,
                               int close_button_state, int* x_extent) = 0;
+
+    /**
+        Returns the rectangle for the given button.
+
+        This function is not pure virtual because it is only for multi-line
+        tabs, but it must be implemented if wxAUI_NB_MULTILINE is used.
+
+        If specified, the returned rectangle must be filled with the same value
+        as DrawButton() puts into its @a outRect but here it can also be null in
+        which case just its width is returned.
+
+        @since 3.3.0
+    */
+    virtual int GetButtonRect(
+                         wxReadOnlyDC& dc,
+                         wxWindow* wnd,
+                         const wxRect& inRect,
+                         int bitmapId,
+                         int buttonState,
+                         int orientation,
+                         wxRect* outRect = nullptr) /* = 0 */;
 
     /**
         Sets flags.
