@@ -25,6 +25,34 @@ enum wxAuiNotebookOption
     /// @since 3.3.0
     wxAUI_NB_MULTILINE           = 1 << 14,
 
+    /**
+        Allow the user to pin tabs by using the pin button.
+
+        With this style, the active page shows either a "pin" icon allowing to
+        pin it if it it's currently not pinned or an "unpin" icon if it is
+        already pinned. Note that "unpin" icon may be shown even if this style
+        is not specified, but ::wxAUI_NB_UNPIN_ON_ALL_PINNED is.
+
+        Note that if this style is not specified, tabs can still be pinned
+        programmatically using SetPageKind().
+
+        @since 3.3.0
+     */
+    wxAUI_NB_PIN_ON_ACTIVE_TAB    = 1 << 15,
+
+    /**
+        Allow the user to unpin pinned tabs by using the unpin button.
+
+        Specifying this style shows "unpin" button on all currently pinned
+        tabs, allowing the user to unpin them, i.e. make them normal again.
+
+        This style can be combined with ::wxAUI_NB_PIN_ON_ACTIVE_TAB or used on
+        its own.
+
+        @since 3.3.0
+     */
+    wxAUI_NB_UNPIN_ON_ALL_PINNED  = 1 << 16,
+
     wxAUI_NB_DEFAULT_STYLE = wxAUI_NB_TOP |
                              wxAUI_NB_TAB_SPLIT |
                              wxAUI_NB_TAB_MOVE |
@@ -82,9 +110,13 @@ struct wxAuiNotebookPosition
     splitter configurations, and toggle through different themes to customize
     the control's look and feel.
 
-    The default theme that is used is wxAuiDefaultTabArt, which provides a modern,
-    glossy look and feel.
-    The theme can be changed by calling wxAuiNotebook::SetArtProvider.
+    The default theme since wxWidgets 3.3.0 is wxAuiFlatTabArt. If you would
+    prefer to use the theme which used to be default in the previous versions,
+    you can call wxAuiNotebook::SetArtProvider() with wxAuiNativeTabArt as the
+    argument. Notice that wxAuiNativeTabArt may be not compatible with
+    ::wxAUI_NB_BOTTOM, ::wxAUI_NB_PIN_ON_ACTIVE_TAB and
+    ::wxAUI_NB_UNPIN_ON_ALL_PINNED styles, so using it is not recommended if
+    you use any of them.
 
     @section auibook_tabs Multiple Tab Controls
 
@@ -176,6 +208,18 @@ struct wxAuiNotebookPosition
            area, multiple rows of tabs are used instead of adding a button
            allowing to scroll them. This style is only available in wxWidgets
            3.3.0 or later.
+    @style{wxAUI_NB_PIN_ON_ACTIVE_TAB}
+           If this style is specified, the active tab shows either a "pin" icon
+           allowing to pin it (i.e. change its kind to wxAuiTabKind::Pinned) if
+           it's not currently pinned or an "unpin" icon to change the kind back
+           to normal. This style is not included in the default notebook style
+           and has to be explicitly specified for the user to be able to pin
+           the tabs interactively. It is available in wxWidgets 3.3.0 or later.
+    @style{wxAUI_NB_UNPIN_ON_ALL_PINNED}
+           If this style is specified, "unpin" button is shown on all currently
+           pinned tabs, allowing the user to unpin them, i.e. make them normal
+           again. This style can be combined with ::wxAUI_NB_PIN_ON_ACTIVE_TAB
+           or used on its own. It is available in wxWidgets 3.3.0 or later.
     @endStyleTable
 
     @beginEventEmissionTable{wxAuiNotebookEvent}
@@ -347,6 +391,15 @@ public:
         recommended to use that generic method instead of this one.
     */
     int GetPageIndex(wxWindow* page_wnd) const;
+
+    /**
+        Returns the tab kind for the page.
+
+        See SetPageKind().
+
+        @since 3.3.0
+     */
+    wxAuiTabKind GetPageKind(size_t pageIdx) const;
 
     /**
         Returns the position of the page in the notebook.
@@ -525,11 +578,11 @@ public:
         ones are simply ignored, so it is always possible to reuse the same
         flags for the main wxAuiManager and the one used by the notebook.
 
-        Example of using this function to disable the fade effect for the
-        notebook:
+        Example of using this function to enable the Venetian blinds effect for
+        the notebook:
         @code
             auiNotebook->SetManagerFlags(
-                wxAuiManager::GetManager()->GetFlags() & ~wxAUI_MGR_HINT_FADE
+                wxAuiManager::GetManager()->GetFlags() | ~wxAUI_MGR_VENETIAN_BLINDS_HINT
             );
         @endcode
 
@@ -561,6 +614,43 @@ public:
         @since 2.9.3
     */
     virtual bool SetPageImage(size_t n, int imageId);
+
+    /**
+        Set the tab kind.
+
+        Can be used to pin or lock a tab.
+
+        Tabs are are grouped in 3 subsets (each of which can possibly be
+        empty):
+
+        - Shown first are locked tabs which are typically used for showing some
+        different content from the normal (and pinned) tabs. These tabs are
+        special, they're always shown and can't be closed nor moved, by
+        dragging them, by the user.
+        - Next are pinned tabs: these tabs can be closed and, depending on
+        whether ::wxAUI_NB_PIN_ON_ACTIVE_TAB and ::wxAUI_NB_UNPIN_ON_ALL_PINNED
+        styles are specified, can also be unpinned (i.e. made normal) by the
+        user. If ::wxAUI_NB_TAB_MOVE is specified, they can be moved by
+        dragging them, however they are restricted to remain in the pinned tabs
+        group, i.e. only the order of the pinned tabs can be changed.
+        - Finally, normal tabs are shown. These tabs can be closed and,
+        depending on ::wxAUI_NB_PIN_ON_ACTIVE_TAB style, pinned by the user.
+        They can also be moved by dragging them, but only inside the same
+        group.
+
+        @param pageIdx
+            The index of the page to change.
+        @param kind
+            The new kind for the page.
+        @return
+            @true if the kind was changed, @false if it didn't change, either
+            because the page already was of the specified @a kind or because
+            the preconditions were not satisfied, e.g. the page index was
+            invalid.
+
+        @since 3.3.0
+     */
+    bool SetPageKind(size_t pageIdx, wxAuiTabKind kind);
 
     /**
         Sets the tab label for the page.
@@ -705,6 +795,20 @@ public:
     bool FindTab(wxWindow* page, wxAuiTabCtrl** ctrl, int* idx);
 };
 
+/**
+    Tab kind for wxAuiNotebook pages.
+
+    See wxAuiNotebook::SetTabKind().
+
+    @since 3.3.0
+ */
+enum class wxAuiTabKind
+{
+    Normal, ///< Can be closed and dragged by user.
+    Pinned, ///< Can be closed and possibly unpinned by user.
+    Locked  ///< Can't be closed, dragged nor unlocked by user.
+};
+
 
 /**
     @class wxAuiNotebookPage
@@ -732,8 +836,20 @@ public:
     /// Bitmap shown in the tab if valid.
     wxBitmapBundle bitmap;
 
+    /// The bounding rectangle of this page tab.
+    wxRect rect;
+
     /// True if the page is the currently selected page.
     bool active = false;
+
+    /**
+        Vector with per-page buttons.
+
+        This vector may be empty.
+
+        @since 3.3.0
+     */
+    std::vector<wxAuiTabContainerButton> buttons;
 
     // The rest of the fields are used internally by wxAUI and are
     // intentionally not documented here.
@@ -762,10 +878,23 @@ class wxAuiNotebookPageArray : public std::vector<wxAuiNotebookPage>
 class wxAuiTabContainerButton
 {
 public:
-    /// button's id
+    /**
+        The id of the button.
+
+        E.g. ::wxAUI_BUTTON_CLOSE.
+     */
     int id;
-    /// current state (normal, hover, pressed, etc.)
+
+    /**
+        State of the button.
+
+        This is a combination of values from ::wxAuiPaneButtonState enum.
+
+        The effect of specifying ::wxAUI_BUTTON_STATE_HIDDEN here is the same
+        as not including information about this button at all.
+     */
     int curState;
+
     /// buttons location (wxLEFT, wxRIGHT, or wxCENTER)
     int location;
     /// button's hover bitmap
@@ -836,7 +965,7 @@ public:
     bool MovePage(wxWindow* page, size_t newIdx);
     bool RemovePage(wxWindow* page);
     void RemovePageAt(size_t idx);
-    bool SetActivePage(wxWindow* page);
+    bool SetActivePage(const wxWindow* page);
     bool SetActivePage(size_t page);
     void SetNoneActive();
     int GetActivePage() const;
@@ -906,10 +1035,10 @@ protected:
 
     This allows the wxAuiNotebook to have a pluggable look-and-feel.
 
-    By default, a wxAuiNotebook uses an instance of this class called
-    wxAuiDefaultTabArt which provides bitmap art and a colour scheme that is
-    adapted to the major platforms' look. You can either derive from that class
-    to alter its behaviour or write a completely new tab art class.
+    By default, a wxAuiNotebook uses an instance of class wxAuiDefaultTabArt,
+    derived from this class, which provides bitmaps and a colour scheme that
+    is adapted to the major platforms' look. You can either derive from that
+    class to alter its behaviour or write a completely new tab art class.
 
     Another example of creating a new wxAuiNotebook tab bar is wxAuiSimpleTabArt.
 
@@ -945,10 +1074,46 @@ public:
 
     /**
         Draws a tab.
+
+        This function used to be pure virtual and so had to be overridden in
+        the derived classes in the previous versions of wxWidgets, however
+        since version 3.3.0 it doesn't have to be overridden if
+        DrawPageTab() is overridden and, moreover, it is recommended to
+        override DrawPageTab() instead of this function in the new code.
     */
     virtual void DrawTab(wxDC& dc, wxWindow* wnd, const wxAuiNotebookPage& page,
                          const wxRect& rect, int close_button_state,
-                         wxRect* out_tab_rect, wxRect* out_button_rect, int* x_extent) = 0;
+                         wxRect* out_tab_rect, wxRect* out_button_rect, int* x_extent);
+
+    /**
+        Draws a tab for the specified notebook page.
+
+        This function must be overridden if DrawTab() is not overridden and,
+        also, if pinned tabs are used, as they are not supported by DrawTab().
+
+        The @a pane contains the information about the page to draw, in
+        particular its wxAuiNotebookPage::buttons specifies the buttons to
+        draw if it is not empty and receives the rectangles where they were
+        drawn on output in the wxAuiTabContainerButton::rect fields.
+
+        Note that if a button state is ::wxAUI_BUTTON_STATE_HIDDEN, the effect
+        is the same as not including this button at all, i.e. it is not drawn
+        and the output field is not modified in this case.
+
+        The wxAuiNotebookPage::rect field is also updated by this function to
+        contain the bounding rectangle of the tab.
+
+        @return
+            The total horizontal span of the tab, which may be greater than the
+            page bounding rectangle.
+
+        @since 3.3.0
+     */
+    virtual int DrawPageTab(
+                         wxDC& dc,
+                         wxWindow* wnd,
+                         wxAuiNotebookPage& page,
+                         const wxRect& rect);
 
     /**
         Returns the tab control size.
@@ -987,10 +1152,30 @@ public:
 
     /**
         Returns the tab size for the given caption, bitmap and state.
+
+        This function used to be pure virtual and so had to be overridden in
+        the derived classes in the previous versions of wxWidgets, however
+        since version 3.3.0 it doesn't have to be overridden if
+        GetPageTabSize() is overridden and it is recommended to override
+        GetPageTabSize() instead of this function in the new code.
     */
-    virtual wxSize GetTabSize(wxDC& dc, wxWindow* wnd, const wxString& caption,
+    virtual wxSize GetTabSize(wxReadOnlyDC& dc, wxWindow* wnd, const wxString& caption,
                               const wxBitmapBundle& bitmap, bool active,
-                              int close_button_state, int* x_extent) = 0;
+                              int close_button_state, int* x_extent);
+
+    /**
+        Returns the size of the tab for the specified notebook page.
+
+        This function must be overridden if GetTabSize() is not overridden and,
+        also, if pinned tabs are used, as they are not supported by GetTabSize().
+
+        @since 3.3.0
+     */
+    virtual wxSize GetPageTabSize(
+                 wxReadOnlyDC& dc,
+                 wxWindow* wnd,
+                 const wxAuiNotebookPage& page,
+                 int* xExtent = nullptr);
 
     /**
         Returns the rectangle for the given button.
@@ -1061,6 +1246,36 @@ public:
                                size_t tab_count,
                                wxWindow* wnd = nullptr) = 0;
 };
+
+/**
+    wxAuiNativeTabArt is an alias for either the art provider providing
+    native-like appearance or wxAuiGenericTabArt if not available.
+
+    Currently wxAuiNativeTabArt uses platform-specific implementation in wxMSW
+    and wxGTK2 ports and wxAuiGenericTabArt elsewhere. The preprocessor symbol
+    @c wxHAS_NATIVE_TABART is defined if the native implementation is available
+    (but note that at least under MSW even the native implementation falls back
+    to wxAuiGenericTabArt if dark mode or any wxAuiNotebook styles not
+    supported by it are used).
+
+    This art provided used to be the default tab art provider in wxAuiNotebook
+    before wxWidgets 3.3.0.
+
+    @library{wxaui}
+    @category{aui}
+
+    @since 3.3.0
+*/
+using wxAuiNativeTabArt = wxAuiGenericTabArt;
+
+/**
+    wxAuiDefaultTabArt is an alias for the tab art provider used by
+    wxAuiNotebook by default.
+
+    Since wxWidgets 3.3.0, this is wxAuiFlatTabArt under all platforms. In the
+    previous versions, this was wxAuiNativeTabArt.
+ */
+using wxAuiDefaultTabArt = wxAuiFlatTabArt;
 
 /**
     @class wxAuiNotebookEvent
@@ -1140,22 +1355,42 @@ wxEventType wxEVT_AUINOTEBOOK_DRAG_DONE;
 wxEventType wxEVT_AUINOTEBOOK_BG_DCLICK;
 
 /**
-    Default art provider for wxAuiNotebook.
+    An art provider for wxAuiNotebook implementing "flat" look.
+
+    This art provider is currently used as the default art provider.
+
+    @library{wxaui}
+    @category{aui}
+
+    @since 3.3.0
+ */
+class wxAuiFlatTabArt : public wxAuiTabArt
+{
+public:
+    /// Default constructor.
+    wxAuiFlatTabArt();
+};
+
+/**
+    An art provider for wxAuiNotebook implementing "glossy" look.
+
+    This art provider is used as fallback art provider for wxAuiNativeTabArt if
+    there is no native tab art provider, but may also be used directly.
 
     @see wxAuiTabArt
 
-    @genericAppearance{auidefaulttabart}
+    @genericAppearance{auigenerictabart}
 
     @library{wxaui}
     @category{aui}
 */
 
-class wxAuiDefaultTabArt : public wxAuiTabArt
+class wxAuiGenericTabArt : public wxAuiTabArt
 {
 public:
 
-    wxAuiDefaultTabArt();
-    virtual ~wxAuiDefaultTabArt();
+    wxAuiGenericTabArt();
+    virtual ~wxAuiGenericTabArt();
 
     wxAuiTabArt* Clone();
     void SetFlags(unsigned int flags);
@@ -1195,7 +1430,7 @@ public:
     int GetIndentSize();
 
     wxSize GetTabSize(
-                 wxDC& dc,
+                 wxReadOnlyDC& dc,
                  wxWindow* wnd,
                  const wxString& caption,
                  const wxBitmapBundle& bitmap,
@@ -1301,7 +1536,7 @@ public:
     int GetIndentSize();
 
     wxSize GetTabSize(
-                 wxDC& dc,
+                 wxReadOnlyDC& dc,
                  wxWindow* wnd,
                  const wxString& caption,
                  const wxBitmap& bitmap,

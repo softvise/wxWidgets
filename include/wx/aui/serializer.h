@@ -17,6 +17,9 @@
 #include <utility>
 #include <vector>
 
+class WXDLLIMPEXP_FWD_AUI wxAuiNotebook;
+class WXDLLIMPEXP_FWD_AUI wxAuiTabCtrl;
+
 // ----------------------------------------------------------------------------
 // Classes used to save/load wxAuiManager layout.
 // ----------------------------------------------------------------------------
@@ -47,6 +50,12 @@ struct wxAuiTabLayoutInfo : wxAuiDockLayoutInfo
     // If this vector is empty, it means that the tab control contains all
     // notebook pages in natural order.
     std::vector<int> pages;
+
+    // Vectors contain indices of pinned pages, if any, i.e. it can be empty.
+    std::vector<int> pinned;
+
+    // Currently active page in this tab control.
+    int active = 0;
 };
 
 // This struct contains the pane name and information about its layout that can
@@ -65,11 +74,16 @@ struct wxAuiPaneLayoutInfo : wxAuiDockLayoutInfo
     wxSize floating_size = wxDefaultSize;
 
 
+    // The remaining fields correspond to individual bits of the pane state
+    // flags instead of corresponding to wxAuiPaneInfo fields directly because
+    // we prefer not storing the entire state -- this would be less readable
+    // and extensible.
+
     // True if the pane is currently maximized.
-    //
-    // Note that it's the only field of this struct which doesn't directly
-    // correspond to a field of wxAuiPaneInfo.
     bool is_maximized   = false;
+
+    // True if the pane is currently hidden.
+    bool is_hidden      = false;
 };
 
 // wxAuiBookSerializer is used for serializing wxAuiNotebook layout.
@@ -158,6 +172,22 @@ public:
     // wxAuiNotebook with the given name.
     virtual std::vector<wxAuiTabLayoutInfo>
     LoadNotebookTabs(const wxString& name) = 0;
+
+    // If any pages haven't been assigned to any tab control after restoring
+    // the pages order, they are passed to this function to determine what to
+    // do with them.
+    //
+    // By default, it returns true without modifying the output arguments,
+    // which results in the page being appended to the main tab control. It may
+    // also modify tabCtrl and tabIndex arguments to modify where the page
+    // should appear or return false to remove the page from the notebook
+    // completely.
+    virtual bool
+    HandleOrphanedPage(wxAuiNotebook& WXUNUSED(book),
+                       int WXUNUSED(page),
+                       wxAuiTabCtrl** WXUNUSED(tabCtrl),
+                       int* WXUNUSED(tabIndex))
+        { return true; }
 };
 
 // wxAuiDeserializer is used with wxAuiManager::LoadLayout().

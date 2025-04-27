@@ -46,7 +46,8 @@ struct wxAuiDockLayoutInfo
     Contains information about the layout of a tab control in a wxAuiNotebook.
 
     This includes where it is docked, via the fields inherited from
-    wxAuiDockLayoutInfo, and the order of pages in it.
+    wxAuiDockLayoutInfo, and, optionally, the order of pages in it if it was
+    changed as well as pinned pages indices, if any.
 
     @since 3.3.0
 */
@@ -59,6 +60,24 @@ struct wxAuiTabLayoutInfo : wxAuiDockLayoutInfo
         notebook pages in natural order.
     */
     std::vector<int> pages;
+
+    /**
+        Indices of the pinned pages in this tab control.
+
+        This vector can be empty if there are no pinned pages in this tab
+        control. Otherwise it should be a subset of the `pages` vector if it is
+        not empty.
+     */
+    std::vector<int> pinned;
+
+    /**
+        Index of the currently selected page in this tab control.
+
+        Note that the value of this field is a page index in the notebook, not
+        the position of the active tab in this tab control, and should be one
+        of the elements of the `pages` vector if it is not empty.
+     */
+    int active = 0;
 };
 
 /**
@@ -67,8 +86,9 @@ struct wxAuiTabLayoutInfo : wxAuiDockLayoutInfo
     This struct is used with wxAuiSerializer and wxAuiDeserializer to store the
     pane layout. Its fields, including the inherited ones from
     wxAuiDockLayoutInfo, have the same meaning as the corresponding fields in
-    wxAuiPaneInfo (with the exception of `is_maximized`), but it doesn't
-    contain the fields that it wouldn't make sense to serialize.
+    wxAuiPaneInfo (with the exception of `is_maximized` and `is_hidden`, which
+    rather correspond to the individual bits of its state field), but it
+    doesn't contain the fields that it wouldn't make sense to serialize.
 
     @since 3.3.0
  */
@@ -91,6 +111,9 @@ struct wxAuiPaneLayoutInfo : wxAuiDockLayoutInfo
 
     /// True if the pane is currently maximized.
     bool is_maximized   = false;
+
+    /// True if the pane is currently hidden.
+    bool is_hidden      = false;
 };
 
 /**
@@ -290,6 +313,39 @@ public:
      */
     virtual std::vector<wxAuiTabLayoutInfo>
     LoadNotebookTabs(const wxString& name) = 0;
+
+    /**
+        Determine what should be done with the pages not attached to any tab
+        control after restoring the pages order.
+
+        It is possible that the data returned by LoadNotebookTabs() doesn't
+        contain the layout information for all the currently existing pages,
+        e.g. because data saved by an earlier program version is being loaded
+        into a newer version in which new pages were added. In this case, this
+        function is called for each @a page that wasn't assigned to any tab
+        after restoring the pages order and can be overridden to determine what
+        should be done with it.
+
+        The default implementation of this function just returns @true without
+        modifying the output arguments, which results in the page being
+        appended to the main tab control. The overridden version may return
+        @true but modify @a tabCtrl and @a tabIndex arguments to change where
+        the page should be inserted, e.g. by setting @a tabIndex to 0 to insert
+        the new pages at the beginning instead of appending them.
+
+        Finally, the overridden function may return @false to indicate that the
+        page should be removed from the notebook.
+
+        @note The @a book parameter can be used to retrieve the total number of
+            pages or to call functions such as wxAuiNotebook::GetMainTabCtrl()
+            or wxAuiNotebook::GetAllTabCtrls() on it, but this function must
+            not attempt to modify it by adding or removing pages to/from it.
+     */
+    virtual bool
+    HandleOrphanedPage(wxAuiNotebook& book,
+                       int page,
+                       wxAuiTabCtrl** tabCtrl,
+                       int* tabIndex);
 };
 
 /**
