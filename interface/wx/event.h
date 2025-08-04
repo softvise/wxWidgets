@@ -1952,6 +1952,65 @@ public:
 };
 
 
+/**
+    Possible values for wxSysMetricChangedEvent::GetMetric().
+
+    @since 3.3.0
+ */
+enum class wxSysMetric
+{
+    /**
+        Undetermined or unknown system metric has changed.
+     */
+    Other,
+
+    /**
+        The default system cursor size has changed.
+
+        The new value can be obtained by calling wxSystemSettings::GetMetric()
+        with ::wxSYS_CURSOR_SIZE parameter.
+     */
+    CursorSize
+};
+
+/**
+    @class wxSysMetricChangedEvent
+
+    Notification about a change in one of the global system metrics.
+
+    Currently this event is only sent by wxMSW.
+
+    Event handlers for this event can access the new system metric values through
+    wxSystemSettings::GetMetric().
+
+    @remarks
+        The default event handler for this event propagates the event to child windows,
+        since the system events are only sent to top-level windows.
+        If intercepting this event for a top-level window, remember to either call
+        wxEvent::Skip() on the event, call the base class handler, or pass the event
+        on to the window's children explicitly.
+
+    @beginEventTable{wxSysMetricChangedEvent}
+    @event{EVT_SYS_METRIC_CHANGED(func)}
+        Process a @c wxEVT_SYS_METRIC_CHANGED event.
+    @endEventTable
+
+    @library{wxcore}
+    @category{events}
+
+    @see @ref overview_events
+
+    @since 3.3.0
+*/
+class wxSysMetricChangedEvent : public wxEvent
+{
+public:
+    /**
+        Return the metric which has changed.
+     */
+    wxSysMetric GetMetric() const;
+};
+
 
 /**
     @class wxCommandEvent
@@ -4026,7 +4085,7 @@ public:
     bool IsPrimary() const;
 
     /**
-        Returns the ID of the touch. This allows to track the move of an specific touch point.
+        Returns the ID of the touch. This allows to track the move of a specific touch point.
     */
     const wxTouchSequenceId& GetSequenceId() const;
 };
@@ -5042,12 +5101,27 @@ public:
     const wxCursor& GetCursor() const;
 
     /**
+        Returns the mouse position for which the cursor is requested.
+
+        This position is expressed in the client coordinates of the window.
+
+        @see GetX(), GetY()
+
+        @since 3.3.0
+    */
+    wxPoint GetPosition() const;
+
+    /**
         Returns the X coordinate of the mouse in client coordinates.
+
+        @see GetPosition()
     */
     wxCoord GetX() const;
 
     /**
         Returns the Y coordinate of the mouse in client coordinates.
+
+        @see GetPosition()
     */
     wxCoord GetY() const;
 
@@ -5385,6 +5459,7 @@ wxEventType wxEVT_MENU_CLOSE;
 wxEventType wxEVT_MENU_HIGHLIGHT;
 wxEventType wxEVT_CONTEXT_MENU;
 wxEventType wxEVT_SYS_COLOUR_CHANGED;
+wxEventType wxEVT_SYS_METRIC_CHANGED;
 wxEventType wxEVT_DISPLAY_CHANGED;
 wxEventType wxEVT_DPI_CHANGED;
 wxEventType wxEVT_QUERY_NEW_PALETTE;

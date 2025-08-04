@@ -2441,8 +2441,8 @@ public:
         problem.
 
 
-        Under wxGTK, wxOSX and wxMSW, you can use ::wxBG_STYLE_TRANSPARENT to obtain
-        full transparency of the window background. Note that wxGTK supports
+        Under wxGTK, wxOSX, wxMSW and wxQt, you can use ::wxBG_STYLE_TRANSPARENT to
+        obtain full transparency of the window background. Note that wxGTK supports
         this only since GTK 2.12 with a compositing manager enabled, call
         IsTransparentBackgroundSupported() to check whether this is the case,
         see the example of doing it in @ref page_samples_shaped "the shaped
@@ -3765,9 +3765,18 @@ public:
     /**
         Return the cursor associated with this window.
 
-        @see SetCursor()
+        @see SetCursor(), GetCursorBundle()
     */
-    const wxCursor& GetCursor() const;
+    wxCursor GetCursor() const;
+
+    /**
+        Returns the cursor bundle associated with this window.
+
+        @see SetCursorBundle()
+
+        @since 3.3.0
+    */
+    wxCursorBundle GetCursorBundle() const;
 
     /**
         Returns @true if this window has the current mouse capture.
@@ -3797,12 +3806,27 @@ public:
         The @a cursor may be @c wxNullCursor in which case the window cursor will
         be reset back to default.
 
+        This function doesn't allow specifying higher resolution versions of
+        the cursor to use on high DPI displays. Use SetCursorBundle() in order
+        to do this.
+
         @param cursor
             Specifies the cursor that the window should normally display.
 
-        @see ::wxSetCursor, wxCursor
+        @see ::wxSetCursor, wxCursor, GetCursor()
     */
     virtual bool SetCursor(const wxCursor& cursor);
+
+    /**
+        Sets a collection of cursors to be used by the window.
+
+        The window will automatically select the cursor of the appropriate size
+        among those available in @a cursors and will update it as necessary if
+        the DPI scaling changes.
+
+        @since 3.3.0
+     */
+    virtual bool SetCursorBundle(const wxCursorBundle& cursors);
 
     /**
         Moves the pointer to the given position on the window.

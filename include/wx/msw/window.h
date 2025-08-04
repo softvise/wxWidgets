@@ -112,7 +112,6 @@ public:
 
     virtual void SetWindowStyleFlag(long style) override;
     virtual void SetExtraStyle(long exStyle) override;
-    virtual bool SetCursor( const wxCursor &cursor ) override;
     virtual bool SetFont( const wxFont &font ) override;
 
     virtual bool IsTransparentBackgroundSupported(wxString* reason = nullptr) const override;
@@ -207,6 +206,8 @@ public:
 
     // implementation from now on
     // ==========================
+
+    virtual void WXUpdateCursor() override;
 
     // event handlers
     // --------------
@@ -575,10 +576,6 @@ public:
 
     // Find the menu corresponding to the given handle.
     virtual wxMenu* MSWFindMenuFromHMENU(WXHMENU hMenu);
-
-    // Find the the current menu item using the given handle and the item id
-    virtual wxMenuItem* MSWFindMenuItemFromHMENU(WXHMENU hMenu, int nItem);
-
 #endif // wxUSE_MENUS && !__WXUNIVERSAL__
 
     // Return the default button for the TLW containing this window or nullptr if

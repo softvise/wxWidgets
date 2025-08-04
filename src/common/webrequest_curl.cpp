@@ -23,7 +23,7 @@
 #endif
 
 #include "wx/uri.h"
-#include "wx/private/socket.h"
+#include "wx/private/sockettype.h"
 #include "wx/evtloop.h"
 
 #ifdef __WINDOWS__
@@ -787,7 +787,7 @@ LRESULT CALLBACK WinSock1SocketPoller::MsgProc(WXHWND hwnd, WXUINT uMsg,
 
     if ( uMsg == SOCKET_MESSAGE )
     {
-        // Extract the result any any errors from lParam.
+        // Extract the result and any errors from lParam.
         int winResult = LOWORD(lParam);
         int error = HIWORD(lParam);
 
@@ -846,7 +846,9 @@ using SocketPollerBase = WinSock1SocketPoller;
 
 #else
 
+#if wxUSE_LOG_TRACE
 constexpr const char* TRACE_CURL = "curl";
+#endif
 
 // SocketPollerSourceHandler - a source handler used by the SocketPoller class.
 

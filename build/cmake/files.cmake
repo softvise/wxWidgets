@@ -799,6 +799,7 @@ set(GUI_CMN_SRC
     src/common/imagtga.cpp
     src/common/imagtiff.cpp
     src/common/imagxpm.cpp
+    src/common/imagwebp.cpp
     src/common/layout.cpp
     src/common/lboxcmn.cpp
     src/common/listctrlcmn.cpp
@@ -847,6 +848,7 @@ set(GUI_CMN_SRC
     src/common/validate.cpp
     src/common/valtext.cpp
     src/common/valnum.cpp
+    src/common/webpdecoder.cpp
     src/common/wincmn.cpp
     src/common/windowid.cpp
     src/common/wrapsizer.cpp
@@ -929,6 +931,7 @@ set(GUI_CMN_SRC
     src/common/bmpbndl.cpp
     src/generic/bmpsvg.cpp
     src/common/powercmn.cpp
+    src/common/curbndl.cpp
 )
 
 set(GUI_CMN_HDR
@@ -1061,6 +1064,7 @@ set(GUI_CMN_HDR
     wx/artprov.h
     wx/bitmap.h
     wx/bookctrl.h
+    wx/busycursor.h
     wx/busyinfo.h
     wx/generic/busyinfo.h
     wx/caret.h
@@ -1126,6 +1130,7 @@ set(GUI_CMN_HDR
     wx/persist.h
     wx/persist/bookctrl.h
     wx/persist/dataview.h
+    wx/persist/radiobut.h
     wx/persist/splitter.h
     wx/persist/toplevel.h
     wx/persist/treebook.h
@@ -1223,6 +1228,9 @@ set(GUI_CMN_HDR
     wx/compositebookctrl.h
     wx/persist/combobox.h
     wx/power.h
+    wx/webpdecoder.h
+    wx/imagwebp.h
+    wx/persist/checkbox.h
 )
 
 set(UNIX_SRC
@@ -1700,18 +1708,6 @@ set(MSW_LOWLEVEL_HDR
     wx/msw/ctrlsub.h
 )
 
-set(MSW_DESKTOP_LOWLEVEL_SRC
-    src/msw/helpchm.cpp
-    src/msw/helpwin.cpp
-    src/msw/ole/automtn.cpp
-    src/msw/ole/uuid.cpp
-)
-
-set(MSW_DESKTOP_LOWLEVEL_HDR
-    wx/msw/helpchm.h
-    wx/msw/helpwin.h
-)
-
 set(MSW_SRC
     src/generic/clrpickerg.cpp
     src/generic/collpaneg.cpp
@@ -1779,6 +1775,9 @@ set(MSW_SRC
     src/msw/hyperlink.cpp
     src/generic/activityindicator.cpp
     src/msw/imaglist.cpp
+    src/msw/checklst.cpp
+    src/msw/fdrepdlg.cpp
+    src/msw/fontdlg.cpp
 )
 
 set(MSW_HDR
@@ -1847,6 +1846,12 @@ set(MSW_HDR
     wx/msw/datetimectrl.h
     wx/msw/timectrl.h
     wx/generic/activityindicator.h
+    wx/msw/mfc.h
+    wx/msw/checklst.h
+    wx/msw/fdrepdlg.h
+    wx/msw/fontdlg.h
+    wx/msw/ole/automtn.h
+    wx/msw/ole/uuid.h
 )
 
 set(MSW_RSC
@@ -1882,20 +1887,6 @@ set(MSW_RSC
     wx/msw/question.ico
     wx/msw/removble.ico
     wx/msw/std.ico
-)
-
-set(MSW_DESKTOP_SRC
-    src/msw/checklst.cpp
-    src/msw/fdrepdlg.cpp
-    src/msw/fontdlg.cpp
-)
-
-set(MSW_DESKTOP_HDR
-    wx/msw/checklst.h
-    wx/msw/fdrepdlg.h
-    wx/msw/fontdlg.h
-    wx/msw/ole/automtn.h
-    wx/msw/ole/uuid.h
 )
 
 set(DFB_LOWLEVEL_SRC
@@ -2403,12 +2394,6 @@ set(MEDIA_MSW_SRC
 )
 
 set(MEDIA_MSW_HDR
-)
-
-set(MEDIA_MSW_DESKTOP_SRC
-)
-
-set(MEDIA_MSW_DESKTOP_HDR
 )
 
 set(MEDIA_OSX_COCOA_SRC

@@ -964,8 +964,7 @@ public:
     wxDragResult GetDropEffect() const { return m_dropEffect; }
     void SetActiveDropIndex(int rowIdx) { m_activeDropIndex = rowIdx; }
     int GetActiveDropIndex() const { return m_activeDropIndex; }
-    // For platforms (currently generic and OSX) that support Drag/Drop
-    // insertion of items, this is the proposed child index for the insertion.
+    // Proposed child index for the insertion under the parent item.
     void SetProposedDropIndex(int index) { m_proposedDropIndex = index; }
     int GetProposedDropIndex() const { return m_proposedDropIndex;}
     void SetDropHint(int hint) { m_dropHint = hint; }
@@ -975,7 +974,7 @@ public:
     void InitData(wxDataObjectComposite* obj, wxDataFormat format);
 #endif // wxUSE_DRAG_AND_DROP
 
-    virtual wxEvent *Clone() const override { return new wxDataViewEvent(*this); }
+    wxNODISCARD virtual wxEvent *Clone() const override { return new wxDataViewEvent(*this); }
 
     // These methods shouldn't be used outside of wxWidgets and wxWidgets
     // itself doesn't use them any longer either as it constructs the events
