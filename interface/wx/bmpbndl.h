@@ -231,8 +231,11 @@ public:
      /**
         Create a bundle from bitmaps stored as files.
 
-        Looking in @a path for files using @a filename as prefix and potentionally a
-        suffix with scale, e.g. "_2x" or "@2x"
+        This function search in @a path for files using @a filename as prefix
+        and potentially a suffix with scale, e.g. "_2x" or "@2x".
+
+        Additionally, since wxWidgets 3.3.2, it also looks for the file in the
+        given name in the "2.0x" subdirectory (if it exists).
 
         @param path     Path of the directory containing the files
         @param filename Bitmap's filename without any scale suffix
@@ -248,13 +251,14 @@ public:
 
         Please note that the current implementation uses NanoSVG library
         (https://github.com/memononen/nanosvg) for parsing and rasterizing SVG
-        images which imposes the following limitations:
+        images, which does not support the following:
 
-        - Text elements are not supported at all (see note for workaround).
-        - SVG 1.1 filters are not supported.
-        - Embedded images are not supported (see note for workaround).
+        - Text elements
+        - SVG 1.1 filters
+        - Embedded images
+        - Clip paths
 
-        These limitations will be relaxed in the future wxWidgets versions.
+        See note below for possible workarounds.
 
         Please also note that this method is only available in the ports
         providing raw bitmap access via wxPixelData. This is the case for all
@@ -278,12 +282,16 @@ public:
         @note Converting text objects to path objects will allow them to be
             rasterized as expected. This can be done in an SVG editor such as
             Inkscape. (In Inkscape, select a text object and choose
-            "Object to Path" from the "Path" menu.)\n
+            "Object to Path" from the "Path" menu.)\n\n
             Converting embedded images to paths from an SVG editor will
             allow them to be rasterized. For example, selecting "Trace Bitmap"
             from the "Path" menu in Inkscape can perform this. This is only
             recommended for simple images, however, as more complex images
-            may not rasterize well.
+            may not rasterize well.\n\n
+            To work around lack of support for clip paths, you can manually cut and remove portions
+            of objects (rather than using a clip path to hide them).
+            In Inkscape, this can be done via either "Path" → "Difference"
+            or "Path" → "Division" (i.e., cookie-cutter subtraction).
      */
     static wxBitmapBundle FromSVG(char* data, const wxSize& sizeDef);
 

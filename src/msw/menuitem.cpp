@@ -663,7 +663,7 @@ void wxMenuItem::SetItemLabel(const wxString& txt)
 
 wxBitmap wxMenuItem::GetBitmap(bool bChecked) const
 {
-    wxBitmap bmp = GetBitmapFromBundle(bChecked ? m_bitmap : m_bmpUnchecked);
+    wxBitmap bmp = GetBitmapFromBundle(GetBitmapBundle(bChecked));
 #if wxUSE_IMAGE
     if ( bmp.IsOk() )
     {
@@ -733,12 +733,14 @@ void wxMenuItem::DoSetBitmap(const wxBitmapBundle& bmpNew, bool bChecked)
 
 void wxMenuItem::SetupBitmaps()
 {
+#if wxUSE_OWNER_DRAWN
     // Owner-drawn items must not return valid bitmaps even if they have them,
     // this somehow breaks the item measuring logic and the menu may not become
     // wide enough to accommodate the items text, so just don't do anything at
     // all for them here.
     if ( IsOwnerDrawn() )
         return;
+#endif // wxUSE_OWNER_DRAWN
 
     const int itemPos = MSGetMenuItemPos();
     if ( itemPos == -1 )

@@ -96,8 +96,6 @@ constexpr const char* TRACE_CEF = "cef";
 
 } // anonymous namespace
 
-extern WXDLLIMPEXP_DATA_WEBVIEW(const char) wxWebViewBackendChromium[] = "wxWebViewChromium";
-
 bool wxWebViewChromium::ms_cefInitialized = false;
 
 wxIMPLEMENT_DYNAMIC_CLASS(wxWebViewChromium, wxWebView);
@@ -809,10 +807,6 @@ bool wxWebViewChromium::Create(wxWindow* parent,
     }
     if ( !InitCEF(m_implData->m_config) )
         return false;
-
-#ifdef __WXMSW__
-    MSWDisableComposited();
-#endif // __WXMSW__
 
     m_clientHandler = new ClientHandler{*this};
     m_clientHandler->AddRef();

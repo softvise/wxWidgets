@@ -622,6 +622,12 @@ bool wxGLContext::SetCurrent(const wxGLCanvas& win) const
     return true;
 }
 
+/* static */
+void wxGLContextBase::ClearCurrent()
+{
+    wglMakeCurrent(nullptr, nullptr);
+}
+
 // ============================================================================
 // wxGLCanvas
 // ============================================================================
@@ -734,8 +740,6 @@ bool wxGLCanvas::Create(wxWindow *parent,
 {
     if ( !CreateWindow(parent, id, pos, size, style, name) )
         return false;
-
-    MSWDisableComposited();
 
     // Choose a matching pixel format.
     // Need a PIXELFORMATDESCRIPTOR for SetPixelFormat()

@@ -9,8 +9,7 @@
 /**
     @class wxAppConsole
 
-    This class is essential for writing console-only or hybrid apps without
-    having to define @c wxUSE_GUI=0.
+    This class us used instead of wxApp for console applications.
 
     It is used to:
     @li set and get application-wide properties (see wxAppConsole::CreateTraits
@@ -30,6 +29,8 @@
     Use wxDECLARE_APP(appClass) in a header file if you want the ::wxGetApp() function
     (which returns a reference to your application object) to be visible to other
     files.
+
+    Note that setting @c wxUSE_GUI=0 makes wxApp identical to this class.
 
     @library{wxbase}
     @category{appmanagement}
@@ -1493,6 +1494,24 @@ public:
 #define wxDECLARE_APP( className )
 
 /**
+    This macro and tells wxWidgets which application class should be used.
+
+    Unlike the more usual wxIMPLEMENT_APP() macro, this macro does not define
+    the entry point of the application, i.e. doesn't define @c main() or
+    @c WinMain() function, so you need to implement it separately when using
+    it.
+
+    The @a className passed to this macro must be a name of a default
+    constructible class deriving from wxApp that will be instantiated by
+    wxWidgets during its initialization.
+
+    Note that this macro requires a final semicolon.
+
+    @header{wx/app.h}
+ */
+#define wxIMPLEMENT_APP_NO_MAIN( className )
+
+/**
     This macro defines the application entry point and tells wxWidgets which
     application class should be used.
 
@@ -1501,8 +1520,9 @@ public:
     typical GUI application it's simpler and more convenient to use this macro
     to do both together.
 
-    The @a className passed to this macro must be a name of the class deriving
-    from wxApp.
+    The @a className passed to this macro must be a name of a default
+    constructible class deriving from wxApp that will be instantiated by
+    wxWidgets during its initialization.
 
     Note that this macro requires a final semicolon.
 

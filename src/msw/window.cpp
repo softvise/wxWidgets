@@ -103,6 +103,7 @@
 
 #include <string.h>
 
+#include <imm.h>
 #include <shellapi.h>
 #include <mmsystem.h>
 
@@ -471,47 +472,6 @@ bool wxWindowMSW::CreateUsingMSWClass(const wxChar* classname,
                  WS_EX_WINDOWEDGE);
     msflags &= ~WS_BORDER;
 #endif // wxUniversal
-
-    // Enable double buffering by default for all our own, i.e. not the ones
-    // using native controls, classes.
-    //
-    // The loop here is a bogus one just to create a block that we can break
-    // from, it never executes more than once.
-    while ( !classname )
-    {
-        // WS_EX_COMPOSITED seems to be incompatible with WS_EX_TOPMOST, so
-        // don't use it for:
-
-        // Popup windows that get created with this style themselves: this
-        // seems to work under Windows 10, but doesn't under Windows 7 and
-        // using WS_EX_COMPOSITED for these windows that are temporarily
-        // doesn't seem to be very useful anyhow, so don't bother testing for
-        // the OS version and just always disable it for them.
-        if ( exstyle & WS_EX_TOPMOST )
-            break;
-
-        // Children of such windows as this doesn't work either (see #23078).
-        wxWindow* const tlw = wxGetTopLevelParent(this);
-        if ( tlw && tlw->HasFlag(wxSTAY_ON_TOP) )
-            break;
-
-        // We also allow disabling the use of this style globally by setting
-        // a system option if nothing else (i.e. turning it off for individual
-        // windows) works.
-        if ( wxSystemOptions::GetOptionInt("msw.window.no-composited") )
-            break;
-
-        // Do enable composition for this window.
-
-        exstyle |= WS_EX_COMPOSITED;
-
-        // We have to use the class including CS_[HV]REDRAW bits, as
-        // WS_EX_COMPOSITED doesn't work correctly if the entire window is
-        // not redrawn every time it's drawn.
-        style |= wxFULL_REPAINT_ON_RESIZE;
-
-        break;
-    }
 
     if ( IsShown() )
     {
@@ -1678,15 +1638,10 @@ void wxWindowMSW::MSWDisableComposited()
 {
     for ( auto win = this; win; win = win->GetParent() )
     {
-        // We never set WS_EX_COMPOSITED on TLWs, and we shouldn't recurse into
-        // different windows, so we can stop here.
+        wxMSWWinExStyleUpdater(GetHwndOf(win)).TurnOff(WS_EX_COMPOSITED);
+
         if ( win->IsTopLevel() )
             break;
-
-        wxMSWWinExStyleUpdater updater(GetHwndOf(win));
-        updater.TurnOff(WS_EX_COMPOSITED);
-        if ( updater.Apply() )
-            win->CallForEachChild([](wxWindow* w) { w->MSWOnDisabledComposited(); });
     }
 }
 
@@ -4387,7 +4342,7 @@ bool wxWindowMSW::HandleActivate(int state,
                                  bool minimized,
                                  WXHWND WXUNUSED(activate))
 {
-    if ( minimized )
+    if ( state == WA_ACTIVE && minimized )
     {
         // Getting activation event when the window is minimized, as happens
         // e.g. when the window task bar icon is clicked, is unexpected and
@@ -7283,6 +7238,51 @@ extern wxWindow *wxGetWindowFromHWND(WXHWND hWnd)
     return win;
 }
 
+namespace
+{
+
+// We use dynamic loading to avoid having to link with imm32.lib
+// (another positive side effect is that imm32.dll is loaded only if the
+// program actually handles wxEVT_CHAR_HOOK events without skipping them, as
+// it's the only case when we need to use these IME functions).
+typedef HIMC (WINAPI *ImmGetContext_t)(HWND);
+typedef BOOL (WINAPI *ImmGetOpenStatus_t)(HIMC);
+typedef BOOL (WINAPI *ImmReleaseContext_t)(HWND, HIMC);
+
+ImmGetContext_t gs_pfnImmGetContext = nullptr;
+ImmGetOpenStatus_t gs_pfnImmGetOpenStatus = nullptr;
+ImmReleaseContext_t gs_pfnImmReleaseContext = nullptr;
+
+bool wxIsIMEOpen(const wxWindow* win)
+{
+    if ( !win )
+        return false;
+
+    if ( !gs_pfnImmGetContext )
+    {
+        wxLoadedDLL dllImm32("imm32.dll");
+        if ( !dllImm32.IsLoaded() )
+            return false;
+
+        wxDL_INIT_FUNC(gs_pfn, ImmGetContext, dllImm32);
+        wxDL_INIT_FUNC(gs_pfn, ImmGetOpenStatus, dllImm32);
+        wxDL_INIT_FUNC(gs_pfn, ImmReleaseContext, dllImm32);
+    }
+
+    const HWND hwnd = GetHwndOf(win);
+
+    const HIMC hIMC = gs_pfnImmGetContext(hwnd);
+    if ( !hIMC )
+        return false;
+
+    const BOOL isOpen = gs_pfnImmGetOpenStatus(hIMC);
+    gs_pfnImmReleaseContext(hwnd, hIMC);
+
+    return isOpen;
+}
+
+} // anonymous namespace
+
 // Windows keyboard hook. Allows interception of e.g. F1, ESCAPE
 // in active frames and dialogs, regardless of where the focus is.
 static HHOOK wxTheKeyboardHook = 0;
@@ -7335,8 +7335,13 @@ wxKeyboardHook(int nCode, WXWPARAM wParam, WXLPARAM lParam)
                 {
                     if ( !event.IsNextEventAllowed() )
                     {
-                        // Stop processing of this event.
-                        return 1;
+                        // When IME is active, we must let it have the event as
+                        // otherwise it could just hang, see #22473.
+                        if ( !wxIsIMEOpen(win) )
+                        {
+                            // Stop processing of this event.
+                            return 1;
+                        }
                     }
                 }
             }

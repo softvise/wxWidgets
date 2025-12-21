@@ -11,19 +11,6 @@ INCOMPATIBLE CHANGES SINCE 3.2.x:
 Changes in behaviour not resulting in compilation errors
 --------------------------------------------------------
 
-- wxMSW now uses double buffering by default, meaning that updating the
-  windows using wxClientDC doesn't work any longer, which is consistent with
-  the behaviour of wxGTK with Wayland backend and of wxOSX, but not with the
-  traditional historic behaviour of wxMSW (or wxGTK/X11). You may call
-  MSWDisableComposited() to restore the previous behaviour, however it is
-  strongly recommended to change your redrawing logic to avoid using wxClientDC
-  instead, as the code using it still won't work with wxGTK/wxOSX.
-
-  You may also choose to globally set the new msw.window.no-composited system
-  option to disable the use of double buffering, but please consider doing it
-  only as a last resort and/or temporary solution, as this _will_ result in
-  flicker and won't be supported at all in the future wxWidgets versions.
-
 - wxMSW doesn't support versions of Microsoft Windows before Windows 7. If you
   need Windows XP or Vista support, please use wxWidgets 3.2.
 
@@ -206,6 +193,13 @@ Changes in behaviour which may result in build errors
   the official ones and those using MSVS projects, but also when using
   makefile.vc or CMake, for consistency.
 
+- CMake files are now installed in a versioned subdirectory, e.g.
+  lib/cmake/wxWidgets-3.3, to allow installing multiple versions of wxWidgets
+  simultaneously, and not just "wxWidgets" as before. Please update your
+  CMake files if you rely on the exact name of this directory. Note that
+  nothing needs to be done if you simply use find_package(wxWidgets) as it
+  still works in the same way as before.
+
 - Support for memory debugging that was previously disabled but could be
   activated by using wxUSE_MEMORY_TRACING, wxUSE_GLOBAL_MEMORY_OPERATORS etc
   options was completely removed. Please use address sanitizer or similar
@@ -238,6 +232,15 @@ Changes in behaviour which may result in build errors
 - wxStyledTextCtrl::AddSelection() erroneously returned int, while the
   corresponding Scintilla doesn't have any return value, so it was changed
   to return void, please update your code to not use its return value.
+
+- Code unintentionally and mistakenly using wxColour ctor from bool that
+  previously compiled doesn't compile any longer, please fix it to use either
+  the ctor from RGB value or from string explicitly.
+
+- wxGLCanvas::CreateSurface() which was previously enabled in build
+  configurations using EGL is not available any longer as exposing it doesn't
+  make sense when wxGLCanvas may use either EGL or GLX.
+
 
 3.3.2: (released 2025-??-??)
 ----------------------------

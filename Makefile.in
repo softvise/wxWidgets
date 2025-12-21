@@ -92,8 +92,10 @@ WXREGEX_CFLAGS = -I$(wx_top_builddir)/3rdparty/pcre/src -D__WX__ \
 	$(WX_CPPFLAGS) -DNDEBUG $(WX_CFLAGS) $(____SHARED) $(CPPFLAGS) $(CFLAGS)
 WXREGEX_OBJECTS =  \
 	wxregex_pcre2_auto_possess.o \
+	wxregex_pcre2_chartables.o \
 	wxregex_pcre2_chkdint.o \
 	wxregex_pcre2_compile.o \
+	wxregex_pcre2_compile_cgroup.o \
 	wxregex_pcre2_compile_class.o \
 	wxregex_pcre2_config.o \
 	wxregex_pcre2_context.o \
@@ -106,6 +108,7 @@ WXREGEX_OBJECTS =  \
 	wxregex_pcre2_maketables.o \
 	wxregex_pcre2_match.o \
 	wxregex_pcre2_match_data.o \
+	wxregex_pcre2_match_next.o \
 	wxregex_pcre2_newline.o \
 	wxregex_pcre2_ord2utf.o \
 	wxregex_pcre2_pattern_info.o \
@@ -118,8 +121,7 @@ WXREGEX_OBJECTS =  \
 	wxregex_pcre2_tables.o \
 	wxregex_pcre2_ucd.o \
 	wxregex_pcre2_valid_utf.o \
-	wxregex_pcre2_xclass.o \
-	wxregex_pcre2_chartables.o
+	wxregex_pcre2_xclass.o
 WXZLIB_CFLAGS = $(WX_CPPFLAGS) -DNDEBUG $(WX_CFLAGS) $(____SHARED) $(CPPFLAGS) \
 	$(CFLAGS)
 WXZLIB_OBJECTS =  \
@@ -219,7 +221,9 @@ WXWEBP_OBJECTS =  \
 	wxwebp_filters_neon.o \
 	wxwebp_filters_sse2.o \
 	wxwebp_lossless.o \
+	wxwebp_lossless_avx2.o \
 	wxwebp_lossless_enc.o \
+	wxwebp_lossless_enc_avx2.o \
 	wxwebp_lossless_enc_mips32.o \
 	wxwebp_lossless_enc_mips_dsp_r2.o \
 	wxwebp_lossless_enc_msa.o \
@@ -533,6 +537,7 @@ WXLEXILLA_OBJECTS =  \
 	wxlexilla_LexRuby.o \
 	wxlexilla_LexRust.o \
 	wxlexilla_LexSAS.o \
+	wxlexilla_LexSINEX.o \
 	wxlexilla_LexSML.o \
 	wxlexilla_LexSQL.o \
 	wxlexilla_LexSTTXT.o \
@@ -926,6 +931,9 @@ ALL_PORTS_BASE_HEADERS =  \
 	wx/localedefs.h \
 	wx/uilocale.h \
 	wx/fs_data.h \
+	wx/unix/fswatcher_inotify.h \
+	wx/unix/stdpaths.h \
+	wx/unix/mimetype.h \
 	wx/unix/app.h \
 	wx/unix/apptbase.h \
 	wx/unix/apptrait.h \
@@ -935,9 +943,6 @@ ALL_PORTS_BASE_HEADERS =  \
 	wx/unix/pipe.h \
 	wx/unix/stackwalk.h \
 	wx/unix/fswatcher_kqueue.h \
-	wx/unix/mimetype.h \
-	wx/unix/fswatcher_inotify.h \
-	wx/unix/stdpaths.h \
 	wx/msw/apptrait.h \
 	wx/msw/apptbase.h \
 	wx/msw/chkconf.h \
@@ -960,7 +965,32 @@ ALL_PORTS_BASE_HEADERS =  \
 	wx/msw/wrapcdlg.h \
 	wx/msw/wrapwin.h \
 	wx/msw/fswatcher.h \
-	$(BASE_OSX_HDR) \
+	wx/osx/core/cfdataref.h \
+	wx/osx/core/cfref.h \
+	wx/osx/core/cfstring.h \
+	wx/osx/core/hid.h \
+	wx/osx/core/evtloop.h \
+	wx/osx/core/objcid.h \
+	wx/osx/core/private.h \
+	wx/osx/core/colour.h \
+	wx/osx/carbon/region.h \
+	wx/osx/core/cfdictionary.h \
+	wx/osx/core/cfarray.h \
+	wx/osx/core/cftype.h \
+	wx/osx/core/joystick.h \
+	wx/osx/core/mimetype.h \
+	wx/osx/core/dataview.h \
+	wx/osx/core/stdpaths.h \
+	wx/unix/app.h \
+	wx/unix/apptbase.h \
+	wx/unix/apptrait.h \
+	wx/unix/chkconf.h \
+	wx/unix/evtloop.h \
+	wx/unix/evtloopsrc.h \
+	wx/unix/pipe.h \
+	wx/unix/stackwalk.h \
+	wx/unix/fswatcher_kqueue.h \
+	wx/osx/fswatcher_fsevents.h \
 	wx/fs_inet.h \
 	wx/protocol/file.h \
 	wx/protocol/ftp.h \
@@ -1062,6 +1092,9 @@ ALL_BASE_SOURCES =  \
 	src/common/lzmastream.cpp \
 	src/common/uilocale.cpp \
 	src/common/fs_data.cpp \
+	src/unix/fswatcher_inotify.cpp \
+	src/unix/stdpaths.cpp \
+	src/unix/secretstore.cpp \
 	src/common/fdiodispatcher.cpp \
 	src/common/selectdispatcher.cpp \
 	src/unix/appunix.cpp \
@@ -1079,9 +1112,6 @@ ALL_BASE_SOURCES =  \
 	src/unix/fswatcher_kqueue.cpp \
 	src/unix/mimetype.cpp \
 	src/unix/uilocale.cpp \
-	src/unix/fswatcher_inotify.cpp \
-	src/unix/stdpaths.cpp \
-	src/unix/secretstore.cpp \
 	src/msw/basemsw.cpp \
 	src/msw/crashrpt.cpp \
 	src/msw/debughlp.cpp \
@@ -1102,13 +1132,36 @@ ALL_BASE_SOURCES =  \
 	src/msw/fswatcher.cpp \
 	src/msw/secretstore.cpp \
 	src/msw/uilocale.cpp \
-	$(BASE_OSX_SRC) \
+	src/osx/core/cfstring.cpp \
+	src/osx/core/evtloop_cf.cpp \
+	src/osx/core/strconv_cf.cpp \
+	src/osx/cocoa/utils_base.mm \
+	src/osx/core/secretstore.cpp \
+	src/osx/core/stdpaths.mm \
+	src/osx/volume.mm \
+	src/common/fdiodispatcher.cpp \
+	src/common/selectdispatcher.cpp \
+	src/unix/appunix.cpp \
+	src/unix/dir.cpp \
+	src/unix/dlunix.cpp \
+	src/unix/epolldispatcher.cpp \
+	src/unix/evtloopunix.cpp \
+	src/unix/fdiounix.cpp \
+	src/unix/snglinst.cpp \
+	src/unix/stackwalk.cpp \
+	src/unix/timerunx.cpp \
+	src/unix/threadpsx.cpp \
+	src/unix/utilsunx.cpp \
+	src/unix/wakeuppipe.cpp \
+	src/unix/fswatcher_kqueue.cpp \
+	src/osx/fswatcher_fsevents.cpp \
+	src/osx/core/uilocale.mm \
+	src/osx/core/mimetype.cpp \
 	src/common/event.cpp \
 	src/common/fs_mem.cpp \
 	src/common/msgout.cpp \
 	src/common/utilscmn.cpp \
 	src/osx/cocoa/utils.mm \
-	src/osx/volume.mm \
 	src/msw/main.cpp \
 	src/msw/volume.cpp \
 	src/common/fs_inet.cpp \
@@ -2337,6 +2390,7 @@ STCDLL_OBJECTS =  \
 	stcdll_PlatWX.o \
 	stcdll_ScintillaWX.o \
 	stcdll_xh_styledtextctrl.o \
+	stcdll_minimap.o \
 	$(__STC_PLATFORM_SRC_OBJECTS_2)
 STCDLL_ODEP =  $(_____pch_wxprec_stcdll_wx_wxprec_h_gch___depname)
 STCLIB_CXXFLAGS = $(__stclib_PCH_INC) $(__INC_TIFF_BUILD_p) $(__INC_TIFF_p) \
@@ -2371,6 +2425,7 @@ STCLIB_OBJECTS =  \
 	stclib_PlatWX.o \
 	stclib_ScintillaWX.o \
 	stclib_xh_styledtextctrl.o \
+	stclib_minimap.o \
 	$(__STC_PLATFORM_SRC_OBJECTS_3)
 STCLIB_ODEP =  $(_____pch_wxprec_stclib_wx_wxprec_h_gch___depname)
 GLDLL_CXXFLAGS = $(__gldll_PCH_INC) $(__INC_TIFF_BUILD_p) $(__INC_TIFF_p) \
@@ -2575,252 +2630,17 @@ COND_PLATFORM_WIN32_1_GTK_PLATFORM_HDR =  \
 @COND_TOOLKIT_MSW@WEBVIEW_PLATFORM_HDR = \
 @COND_TOOLKIT_MSW@	wx/msw/webviewhistoryitem_ie.h wx/msw/webview_ie.h \
 @COND_TOOLKIT_MSW@	wx/msw/webview_edge.h
-@COND_TOOLKIT_GTK@OPENGL_PLATFORM_HDR = wx/unix/glx11.h \
-@COND_TOOLKIT_GTK@	wx/gtk/glcanvas.h wx/unix/glegl.h
+@COND_TOOLKIT_GTK@OPENGL_PLATFORM_HDR = wx/gtk/glcanvas.h \
+@COND_TOOLKIT_GTK@	wx/unix/glcanvas.h
 @COND_TOOLKIT_MSW@OPENGL_PLATFORM_HDR = wx/msw/glcanvas.h
 @COND_TOOLKIT_OSX_COCOA@OPENGL_PLATFORM_HDR = wx/osx/glcanvas.h
 @COND_TOOLKIT_OSX_IPHONE@OPENGL_PLATFORM_HDR = wx/osx/glcanvas.h
 @COND_TOOLKIT_QT@OPENGL_PLATFORM_HDR = wx/qt/glcanvas.h
-@COND_TOOLKIT_X11@OPENGL_PLATFORM_HDR = wx/unix/glx11.h wx/x11/glcanvas.h
+@COND_TOOLKIT_X11@OPENGL_PLATFORM_HDR = wx/x11/glcanvas.h \
+@COND_TOOLKIT_X11@	wx/unix/glcanvas.h
 @COND_TOOLKIT_GTK_TOOLKIT_VERSION_2@AUI_PLATFORM_HDR = wx/aui/tabartgtk.h
 @COND_TOOLKIT_MSW@AUI_PLATFORM_HDR = wx/aui/tabartmsw.h wx/aui/barartmsw.h
-COND_TOOLKIT__BASE_OSX_SRC =  \
-	src/common/fdiodispatcher.cpp \
-	src/common/selectdispatcher.cpp \
-	src/unix/appunix.cpp \
-	src/unix/dir.cpp \
-	src/unix/dlunix.cpp \
-	src/unix/epolldispatcher.cpp \
-	src/unix/evtloopunix.cpp \
-	src/unix/fdiounix.cpp \
-	src/unix/snglinst.cpp \
-	src/unix/stackwalk.cpp \
-	src/unix/timerunx.cpp \
-	src/unix/threadpsx.cpp \
-	src/unix/utilsunx.cpp \
-	src/unix/wakeuppipe.cpp \
-	src/unix/fswatcher_kqueue.cpp \
-	src/unix/mimetype.cpp \
-	src/unix/uilocale.cpp \
-	src/osx/core/cfstring.cpp \
-	src/osx/core/evtloop_cf.cpp \
-	src/osx/core/strconv_cf.cpp \
-	src/osx/cocoa/utils_base.mm \
-	src/osx/core/secretstore.cpp \
-	src/osx/core/stdpaths.mm
-@COND_TOOLKIT_@BASE_OSX_SRC = $(COND_TOOLKIT__BASE_OSX_SRC)
-COND_TOOLKIT_COCOA_BASE_OSX_SRC =  \
-	src/common/fdiodispatcher.cpp \
-	src/common/selectdispatcher.cpp \
-	src/unix/appunix.cpp \
-	src/unix/dir.cpp \
-	src/unix/dlunix.cpp \
-	src/unix/epolldispatcher.cpp \
-	src/unix/evtloopunix.cpp \
-	src/unix/fdiounix.cpp \
-	src/unix/snglinst.cpp \
-	src/unix/stackwalk.cpp \
-	src/unix/timerunx.cpp \
-	src/unix/threadpsx.cpp \
-	src/unix/utilsunx.cpp \
-	src/unix/wakeuppipe.cpp \
-	src/unix/fswatcher_kqueue.cpp \
-	src/unix/mimetype.cpp \
-	src/unix/uilocale.cpp \
-	src/osx/core/cfstring.cpp \
-	src/osx/core/evtloop_cf.cpp \
-	src/osx/core/strconv_cf.cpp \
-	src/osx/cocoa/utils_base.mm \
-	src/osx/core/secretstore.cpp \
-	src/osx/core/stdpaths.mm
-@COND_TOOLKIT_COCOA@BASE_OSX_SRC = $(COND_TOOLKIT_COCOA_BASE_OSX_SRC)
-COND_TOOLKIT_GTK_BASE_OSX_SRC =  \
-	src/common/fdiodispatcher.cpp \
-	src/common/selectdispatcher.cpp \
-	src/unix/appunix.cpp \
-	src/unix/dir.cpp \
-	src/unix/dlunix.cpp \
-	src/unix/epolldispatcher.cpp \
-	src/unix/evtloopunix.cpp \
-	src/unix/fdiounix.cpp \
-	src/unix/snglinst.cpp \
-	src/unix/stackwalk.cpp \
-	src/unix/timerunx.cpp \
-	src/unix/threadpsx.cpp \
-	src/unix/utilsunx.cpp \
-	src/unix/wakeuppipe.cpp \
-	src/unix/fswatcher_kqueue.cpp \
-	src/unix/mimetype.cpp \
-	src/unix/uilocale.cpp \
-	src/osx/core/cfstring.cpp \
-	src/osx/core/evtloop_cf.cpp \
-	src/osx/core/strconv_cf.cpp \
-	src/osx/cocoa/utils_base.mm \
-	src/osx/core/secretstore.cpp \
-	src/osx/core/stdpaths.mm
-@COND_TOOLKIT_GTK@BASE_OSX_SRC = $(COND_TOOLKIT_GTK_BASE_OSX_SRC)
-COND_TOOLKIT_OSX_COCOA_BASE_OSX_SRC =  \
-	src/osx/core/mimetype.cpp \
-	src/osx/core/cfstring.cpp \
-	src/osx/core/evtloop_cf.cpp \
-	src/osx/core/strconv_cf.cpp \
-	src/osx/cocoa/utils_base.mm \
-	src/osx/core/secretstore.cpp \
-	src/osx/core/stdpaths.mm \
-	src/common/fdiodispatcher.cpp \
-	src/common/selectdispatcher.cpp \
-	src/unix/appunix.cpp \
-	src/unix/dir.cpp \
-	src/unix/dlunix.cpp \
-	src/unix/epolldispatcher.cpp \
-	src/unix/evtloopunix.cpp \
-	src/unix/fdiounix.cpp \
-	src/unix/snglinst.cpp \
-	src/unix/stackwalk.cpp \
-	src/unix/timerunx.cpp \
-	src/unix/threadpsx.cpp \
-	src/unix/utilsunx.cpp \
-	src/unix/wakeuppipe.cpp \
-	src/unix/fswatcher_kqueue.cpp \
-	src/osx/fswatcher_fsevents.cpp \
-	src/osx/core/uilocale.mm
-@COND_TOOLKIT_OSX_COCOA@BASE_OSX_SRC = $(COND_TOOLKIT_OSX_COCOA_BASE_OSX_SRC)
-COND_TOOLKIT_OSX_IPHONE_BASE_OSX_SRC =  \
-	src/osx/core/mimetype.cpp \
-	src/osx/core/cfstring.cpp \
-	src/osx/core/evtloop_cf.cpp \
-	src/osx/core/strconv_cf.cpp \
-	src/osx/cocoa/utils_base.mm \
-	src/osx/core/secretstore.cpp \
-	src/osx/core/stdpaths.mm \
-	src/common/fdiodispatcher.cpp \
-	src/common/selectdispatcher.cpp \
-	src/unix/appunix.cpp \
-	src/unix/dir.cpp \
-	src/unix/dlunix.cpp \
-	src/unix/epolldispatcher.cpp \
-	src/unix/evtloopunix.cpp \
-	src/unix/fdiounix.cpp \
-	src/unix/snglinst.cpp \
-	src/unix/stackwalk.cpp \
-	src/unix/timerunx.cpp \
-	src/unix/threadpsx.cpp \
-	src/unix/utilsunx.cpp \
-	src/unix/wakeuppipe.cpp \
-	src/unix/fswatcher_kqueue.cpp \
-	src/osx/fswatcher_fsevents.cpp \
-	src/osx/core/uilocale.mm
-@COND_TOOLKIT_OSX_IPHONE@BASE_OSX_SRC = $(COND_TOOLKIT_OSX_IPHONE_BASE_OSX_SRC)
-COND_TOOLKIT_X11_BASE_OSX_SRC =  \
-	src/common/fdiodispatcher.cpp \
-	src/common/selectdispatcher.cpp \
-	src/unix/appunix.cpp \
-	src/unix/dir.cpp \
-	src/unix/dlunix.cpp \
-	src/unix/epolldispatcher.cpp \
-	src/unix/evtloopunix.cpp \
-	src/unix/fdiounix.cpp \
-	src/unix/snglinst.cpp \
-	src/unix/stackwalk.cpp \
-	src/unix/timerunx.cpp \
-	src/unix/threadpsx.cpp \
-	src/unix/utilsunx.cpp \
-	src/unix/wakeuppipe.cpp \
-	src/unix/fswatcher_kqueue.cpp \
-	src/unix/mimetype.cpp \
-	src/unix/uilocale.cpp \
-	src/osx/core/cfstring.cpp \
-	src/osx/core/evtloop_cf.cpp \
-	src/osx/core/strconv_cf.cpp \
-	src/osx/cocoa/utils_base.mm \
-	src/osx/core/secretstore.cpp \
-	src/osx/core/stdpaths.mm
-@COND_TOOLKIT_X11@BASE_OSX_SRC = $(COND_TOOLKIT_X11_BASE_OSX_SRC)
-COND_TOOLKIT__BASE_OSX_HDR =  \
-	wx/unix/app.h \
-	wx/unix/apptbase.h \
-	wx/unix/apptrait.h \
-	wx/unix/chkconf.h \
-	wx/unix/evtloop.h \
-	wx/unix/evtloopsrc.h \
-	wx/unix/pipe.h \
-	wx/unix/stackwalk.h \
-	wx/unix/fswatcher_kqueue.h \
-	wx/unix/mimetype.h \
-	wx/osx/core/cfdataref.h \
-	wx/osx/core/cfref.h \
-	wx/osx/core/cfstring.h \
-	wx/osx/core/hid.h \
-	wx/osx/core/evtloop.h \
-	wx/osx/core/objcid.h \
-	wx/osx/core/private.h \
-	wx/osx/core/colour.h \
-	wx/osx/carbon/region.h \
-	wx/osx/core/cfdictionary.h \
-	wx/osx/core/cfarray.h \
-	wx/osx/core/cftype.h \
-	wx/osx/core/joystick.h \
-	wx/osx/core/mimetype.h \
-	wx/osx/core/dataview.h \
-	wx/osx/core/stdpaths.h
-@COND_TOOLKIT_@BASE_OSX_HDR = $(COND_TOOLKIT__BASE_OSX_HDR)
-COND_TOOLKIT_COCOA_BASE_OSX_HDR =  \
-	wx/unix/app.h \
-	wx/unix/apptbase.h \
-	wx/unix/apptrait.h \
-	wx/unix/chkconf.h \
-	wx/unix/evtloop.h \
-	wx/unix/evtloopsrc.h \
-	wx/unix/pipe.h \
-	wx/unix/stackwalk.h \
-	wx/unix/fswatcher_kqueue.h \
-	wx/unix/mimetype.h \
-	wx/osx/core/cfdataref.h \
-	wx/osx/core/cfref.h \
-	wx/osx/core/cfstring.h \
-	wx/osx/core/hid.h \
-	wx/osx/core/evtloop.h \
-	wx/osx/core/objcid.h \
-	wx/osx/core/private.h \
-	wx/osx/core/colour.h \
-	wx/osx/carbon/region.h \
-	wx/osx/core/cfdictionary.h \
-	wx/osx/core/cfarray.h \
-	wx/osx/core/cftype.h \
-	wx/osx/core/joystick.h \
-	wx/osx/core/mimetype.h \
-	wx/osx/core/dataview.h \
-	wx/osx/core/stdpaths.h
-@COND_TOOLKIT_COCOA@BASE_OSX_HDR = $(COND_TOOLKIT_COCOA_BASE_OSX_HDR)
-COND_TOOLKIT_GTK_BASE_OSX_HDR =  \
-	wx/unix/app.h \
-	wx/unix/apptbase.h \
-	wx/unix/apptrait.h \
-	wx/unix/chkconf.h \
-	wx/unix/evtloop.h \
-	wx/unix/evtloopsrc.h \
-	wx/unix/pipe.h \
-	wx/unix/stackwalk.h \
-	wx/unix/fswatcher_kqueue.h \
-	wx/unix/mimetype.h \
-	wx/osx/core/cfdataref.h \
-	wx/osx/core/cfref.h \
-	wx/osx/core/cfstring.h \
-	wx/osx/core/hid.h \
-	wx/osx/core/evtloop.h \
-	wx/osx/core/objcid.h \
-	wx/osx/core/private.h \
-	wx/osx/core/colour.h \
-	wx/osx/carbon/region.h \
-	wx/osx/core/cfdictionary.h \
-	wx/osx/core/cfarray.h \
-	wx/osx/core/cftype.h \
-	wx/osx/core/joystick.h \
-	wx/osx/core/mimetype.h \
-	wx/osx/core/dataview.h \
-	wx/osx/core/stdpaths.h
-@COND_TOOLKIT_GTK@BASE_OSX_HDR = $(COND_TOOLKIT_GTK_BASE_OSX_HDR)
-COND_TOOLKIT_OSX_COCOA_BASE_OSX_HDR =  \
+COND_PLATFORM_MACOSX_1_BASE_PLATFORM_HDR =  \
 	wx/osx/core/cfdataref.h \
 	wx/osx/core/cfref.h \
 	wx/osx/core/cfstring.h \
@@ -2847,37 +2667,11 @@ COND_TOOLKIT_OSX_COCOA_BASE_OSX_HDR =  \
 	wx/unix/stackwalk.h \
 	wx/unix/fswatcher_kqueue.h \
 	wx/osx/fswatcher_fsevents.h
-@COND_TOOLKIT_OSX_COCOA@BASE_OSX_HDR = $(COND_TOOLKIT_OSX_COCOA_BASE_OSX_HDR)
-COND_TOOLKIT_X11_BASE_OSX_HDR =  \
-	wx/unix/app.h \
-	wx/unix/apptbase.h \
-	wx/unix/apptrait.h \
-	wx/unix/chkconf.h \
-	wx/unix/evtloop.h \
-	wx/unix/evtloopsrc.h \
-	wx/unix/pipe.h \
-	wx/unix/stackwalk.h \
-	wx/unix/fswatcher_kqueue.h \
-	wx/unix/mimetype.h \
-	wx/osx/core/cfdataref.h \
-	wx/osx/core/cfref.h \
-	wx/osx/core/cfstring.h \
-	wx/osx/core/hid.h \
-	wx/osx/core/evtloop.h \
-	wx/osx/core/objcid.h \
-	wx/osx/core/private.h \
-	wx/osx/core/colour.h \
-	wx/osx/carbon/region.h \
-	wx/osx/core/cfdictionary.h \
-	wx/osx/core/cfarray.h \
-	wx/osx/core/cftype.h \
-	wx/osx/core/joystick.h \
-	wx/osx/core/mimetype.h \
-	wx/osx/core/dataview.h \
-	wx/osx/core/stdpaths.h
-@COND_TOOLKIT_X11@BASE_OSX_HDR = $(COND_TOOLKIT_X11_BASE_OSX_HDR)
-@COND_PLATFORM_MACOSX_1@BASE_PLATFORM_HDR = $(BASE_OSX_HDR)
+@COND_PLATFORM_MACOSX_1@BASE_PLATFORM_HDR = $(COND_PLATFORM_MACOSX_1_BASE_PLATFORM_HDR)
 COND_PLATFORM_UNIX_1_BASE_PLATFORM_HDR =  \
+	wx/unix/fswatcher_inotify.h \
+	wx/unix/stdpaths.h \
+	wx/unix/mimetype.h \
 	wx/unix/app.h \
 	wx/unix/apptbase.h \
 	wx/unix/apptrait.h \
@@ -2886,10 +2680,7 @@ COND_PLATFORM_UNIX_1_BASE_PLATFORM_HDR =  \
 	wx/unix/evtloopsrc.h \
 	wx/unix/pipe.h \
 	wx/unix/stackwalk.h \
-	wx/unix/fswatcher_kqueue.h \
-	wx/unix/mimetype.h \
-	wx/unix/fswatcher_inotify.h \
-	wx/unix/stdpaths.h
+	wx/unix/fswatcher_kqueue.h
 @COND_PLATFORM_UNIX_1@BASE_PLATFORM_HDR = $(COND_PLATFORM_UNIX_1_BASE_PLATFORM_HDR)
 COND_PLATFORM_WIN32_1_BASE_PLATFORM_HDR =  \
 	wx/msw/apptrait.h \
@@ -3339,7 +3130,6 @@ COND_TOOLKIT_MSW_GUI_HDR =  \
 	wx/msw/headerctrl.h \
 	wx/msw/imaglist.h \
 	wx/msw/iniconf.h \
-	wx/msw/init.h \
 	wx/msw/listbox.h \
 	wx/msw/listctrl.h \
 	wx/msw/mdi.h \
@@ -3969,7 +3759,6 @@ COND_USE_GUI_1_ALL_GUI_HEADERS =  \
 	wx/quantize.h \
 	wx/rawbmp.h \
 	wx/region.h \
-	wx/scopeguard.h \
 	wx/simplebook.h \
 	wx/spinbutt.h \
 	wx/spinctrl.h \
@@ -4215,6 +4004,7 @@ COND_USE_GUI_1_ALL_GUI_HEADERS =  \
 	wx/xrc/xh_richtext.h \
 	wx/stc/stc.h \
 	wx/xrc/xh_styledtextctrl.h \
+	wx/stc/minimap.h \
 	$(WEBVIEW_PLATFORM_HDR) \
 	wx/webview.h \
 	wx/webviewarchivehandler.h \
@@ -4289,13 +4079,13 @@ COND_USE_SOVERSOLARIS_1___monodll___so_symlinks_uninst_cmd = rm -f \
 	$(LIBPREFIX)wx_$(PORTNAME)$(WXUNIVNAME)u$(WXDEBUGFLAG)$(WX_LIB_FLAVOUR)-$(WX_RELEASE)$(HOST_SUFFIX).$(DLLIMP_SUFFIX)
 @COND_USE_SOVERSOLARIS_1@__monodll___so_symlinks_uninst_cmd = $(COND_USE_SOVERSOLARIS_1___monodll___so_symlinks_uninst_cmd)
 COND_PLATFORM_MACOSX_1___BASE_PLATFORM_SRC_OBJECTS =  \
-	monodll_core_mimetype.o \
 	monodll_cfstring.o \
 	monodll_evtloop_cf.o \
 	monodll_strconv_cf.o \
 	monodll_utils_base.o \
 	monodll_core_secretstore.o \
 	monodll_core_stdpaths.o \
+	monodll_osx_volume.o \
 	monodll_fdiodispatcher.o \
 	monodll_selectdispatcher.o \
 	monodll_appunix.o \
@@ -4312,9 +4102,13 @@ COND_PLATFORM_MACOSX_1___BASE_PLATFORM_SRC_OBJECTS =  \
 	monodll_wakeuppipe.o \
 	monodll_fswatcher_kqueue.o \
 	monodll_fswatcher_fsevents.o \
-	monodll_core_uilocale.o
+	monodll_core_uilocale.o \
+	monodll_core_mimetype.o
 @COND_PLATFORM_MACOSX_1@__BASE_PLATFORM_SRC_OBJECTS = $(COND_PLATFORM_MACOSX_1___BASE_PLATFORM_SRC_OBJECTS)
 COND_PLATFORM_UNIX_1___BASE_PLATFORM_SRC_OBJECTS =  \
+	monodll_fswatcher_inotify.o \
+	monodll_unix_stdpaths.o \
+	monodll_unix_secretstore.o \
 	monodll_fdiodispatcher.o \
 	monodll_selectdispatcher.o \
 	monodll_appunix.o \
@@ -4331,10 +4125,7 @@ COND_PLATFORM_UNIX_1___BASE_PLATFORM_SRC_OBJECTS =  \
 	monodll_wakeuppipe.o \
 	monodll_fswatcher_kqueue.o \
 	monodll_unix_mimetype.o \
-	monodll_unix_uilocale.o \
-	monodll_fswatcher_inotify.o \
-	monodll_unix_stdpaths.o \
-	monodll_unix_secretstore.o
+	monodll_unix_uilocale.o
 @COND_PLATFORM_UNIX_1@__BASE_PLATFORM_SRC_OBJECTS = $(COND_PLATFORM_UNIX_1___BASE_PLATFORM_SRC_OBJECTS)
 COND_PLATFORM_WIN32_1___BASE_PLATFORM_SRC_OBJECTS =  \
 	monodll_basemsw.o \
@@ -4361,7 +4152,7 @@ COND_PLATFORM_WIN32_1___BASE_PLATFORM_SRC_OBJECTS =  \
 @COND_PLATFORM_WIN32_1@__BASE_AND_GUI_PLATFORM_SRC_OBJECTS \
 @COND_PLATFORM_WIN32_1@	= monodll_main.o monodll_msw_volume.o
 @COND_TOOLKIT_OSX_COCOA@__BASE_AND_GUI_TOOLKIT_SRC_OBJECTS \
-@COND_TOOLKIT_OSX_COCOA@	= monodll_cocoa_utils.o monodll_osx_volume.o
+@COND_TOOLKIT_OSX_COCOA@	= monodll_cocoa_utils.o
 COND_PLATFORM_MACOSX_1___NET_PLATFORM_SRC_OBJECTS =  \
 	monodll_socketiohandler.o \
 	monodll_sockunix.o \
@@ -5071,6 +4862,7 @@ COND_TOOLKIT_GTK_TOOLKIT_VERSION_2___LOWLEVEL_SRC_OBJECTS =  \
 	monodll_gtk_window.o \
 	monodll_gtk_mimetype.o \
 	monodll_gtk_power.o \
+	monodll_wayland.o \
 	monodll_gtk_dcclient.o \
 	monodll_gtk_dcmemory.o \
 	monodll_gtk_dcscreen.o
@@ -5112,7 +4904,8 @@ COND_TOOLKIT_GTK_TOOLKIT_VERSION_3___LOWLEVEL_SRC_OBJECTS =  \
 	monodll_win_gtk.o \
 	monodll_gtk_window.o \
 	monodll_gtk_mimetype.o \
-	monodll_gtk_power.o
+	monodll_gtk_power.o \
+	monodll_wayland.o
 @COND_TOOLKIT_GTK_TOOLKIT_VERSION_3@__LOWLEVEL_SRC_OBJECTS = $(COND_TOOLKIT_GTK_TOOLKIT_VERSION_3___LOWLEVEL_SRC_OBJECTS)
 COND_TOOLKIT_GTK_TOOLKIT_VERSION_4___LOWLEVEL_SRC_OBJECTS =  \
 	$(__GTK_PLATFORM_SRC_OBJECTS) \
@@ -5151,7 +4944,8 @@ COND_TOOLKIT_GTK_TOOLKIT_VERSION_4___LOWLEVEL_SRC_OBJECTS =  \
 	monodll_win_gtk.o \
 	monodll_gtk_window.o \
 	monodll_gtk_mimetype.o \
-	monodll_gtk_power.o
+	monodll_gtk_power.o \
+	monodll_wayland.o
 @COND_TOOLKIT_GTK_TOOLKIT_VERSION_4@__LOWLEVEL_SRC_OBJECTS = $(COND_TOOLKIT_GTK_TOOLKIT_VERSION_4___LOWLEVEL_SRC_OBJECTS)
 COND_TOOLKIT_MSW___LOWLEVEL_SRC_OBJECTS =  \
 	monodll_activex.o \
@@ -5603,11 +5397,15 @@ COND_TOOLKIT_OSX_IPHONE___GUI_SRC_OBJECTS =  \
 	monodll_iphone_anybutton.o \
 	monodll_iphone_button.o \
 	monodll_iphone_checkbox.o \
+	monodll_iphone_choice.o \
+	monodll_iphone_colour.o \
 	monodll_iphone_dialog.o \
 	monodll_iphone_evtloop.o \
 	monodll_iphone_gauge.o \
+	monodll_iphone_listbox.o \
 	monodll_iphone_msgdlg.o \
 	monodll_iphone_nonownedwnd.o \
+	monodll_iphone_notebook.o \
 	monodll_iphone_scrolbar.o \
 	monodll_iphone_slider.o \
 	monodll_iphone_stattext.o \
@@ -5807,6 +5605,7 @@ COND_TOOLKIT_GTK_TOOLKIT_VERSION_2___LOWLEVEL_SRC_OBJECTS_1 =  \
 	monodll_gtk_window.o \
 	monodll_gtk_mimetype.o \
 	monodll_gtk_power.o \
+	monodll_wayland.o \
 	monodll_gtk_dcclient.o \
 	monodll_gtk_dcmemory.o \
 	monodll_gtk_dcscreen.o
@@ -5848,7 +5647,8 @@ COND_TOOLKIT_GTK_TOOLKIT_VERSION_3___LOWLEVEL_SRC_OBJECTS_1 =  \
 	monodll_win_gtk.o \
 	monodll_gtk_window.o \
 	monodll_gtk_mimetype.o \
-	monodll_gtk_power.o
+	monodll_gtk_power.o \
+	monodll_wayland.o
 @COND_TOOLKIT_GTK_TOOLKIT_VERSION_3@__LOWLEVEL_SRC_OBJECTS_1 = $(COND_TOOLKIT_GTK_TOOLKIT_VERSION_3___LOWLEVEL_SRC_OBJECTS_1)
 COND_TOOLKIT_GTK_TOOLKIT_VERSION_4___LOWLEVEL_SRC_OBJECTS_1 =  \
 	$(__GTK_PLATFORM_SRC_OBJECTS) \
@@ -5887,7 +5687,8 @@ COND_TOOLKIT_GTK_TOOLKIT_VERSION_4___LOWLEVEL_SRC_OBJECTS_1 =  \
 	monodll_win_gtk.o \
 	monodll_gtk_window.o \
 	monodll_gtk_mimetype.o \
-	monodll_gtk_power.o
+	monodll_gtk_power.o \
+	monodll_wayland.o
 @COND_TOOLKIT_GTK_TOOLKIT_VERSION_4@__LOWLEVEL_SRC_OBJECTS_1 = $(COND_TOOLKIT_GTK_TOOLKIT_VERSION_4___LOWLEVEL_SRC_OBJECTS_1)
 COND_TOOLKIT_MSW___LOWLEVEL_SRC_OBJECTS_1 =  \
 	monodll_activex.o \
@@ -6037,6 +5838,7 @@ COND_USE_STC_1___MONOLIB_STC_SRC_OBJECTS =  \
 	monodll_PlatWX.o \
 	monodll_ScintillaWX.o \
 	monodll_xh_styledtextctrl.o \
+	monodll_minimap.o \
 	$(__STC_PLATFORM_SRC_OBJECTS)
 @COND_USE_STC_1@__MONOLIB_STC_SRC_OBJECTS = $(COND_USE_STC_1___MONOLIB_STC_SRC_OBJECTS)
 @COND_TOOLKIT_OSX_COCOA@__STC_PLATFORM_SRC_OBJECTS = monodll_PlatWXcocoa.o
@@ -6061,13 +5863,13 @@ COND_MONOLITHIC_1_SHARED_0___monolib___depname = \
 @COND_USE_PCH_1@_____pch_wxprec_monolib_wx_wxprec_h_gch___depname \
 @COND_USE_PCH_1@	= ./.pch/wxprec_monolib/wx/wxprec.h.gch
 COND_PLATFORM_MACOSX_1___BASE_PLATFORM_SRC_OBJECTS_1 =  \
-	monolib_core_mimetype.o \
 	monolib_cfstring.o \
 	monolib_evtloop_cf.o \
 	monolib_strconv_cf.o \
 	monolib_utils_base.o \
 	monolib_core_secretstore.o \
 	monolib_core_stdpaths.o \
+	monolib_osx_volume.o \
 	monolib_fdiodispatcher.o \
 	monolib_selectdispatcher.o \
 	monolib_appunix.o \
@@ -6084,9 +5886,13 @@ COND_PLATFORM_MACOSX_1___BASE_PLATFORM_SRC_OBJECTS_1 =  \
 	monolib_wakeuppipe.o \
 	monolib_fswatcher_kqueue.o \
 	monolib_fswatcher_fsevents.o \
-	monolib_core_uilocale.o
+	monolib_core_uilocale.o \
+	monolib_core_mimetype.o
 @COND_PLATFORM_MACOSX_1@__BASE_PLATFORM_SRC_OBJECTS_1 = $(COND_PLATFORM_MACOSX_1___BASE_PLATFORM_SRC_OBJECTS_1)
 COND_PLATFORM_UNIX_1___BASE_PLATFORM_SRC_OBJECTS_1 =  \
+	monolib_fswatcher_inotify.o \
+	monolib_unix_stdpaths.o \
+	monolib_unix_secretstore.o \
 	monolib_fdiodispatcher.o \
 	monolib_selectdispatcher.o \
 	monolib_appunix.o \
@@ -6103,10 +5909,7 @@ COND_PLATFORM_UNIX_1___BASE_PLATFORM_SRC_OBJECTS_1 =  \
 	monolib_wakeuppipe.o \
 	monolib_fswatcher_kqueue.o \
 	monolib_unix_mimetype.o \
-	monolib_unix_uilocale.o \
-	monolib_fswatcher_inotify.o \
-	monolib_unix_stdpaths.o \
-	monolib_unix_secretstore.o
+	monolib_unix_uilocale.o
 @COND_PLATFORM_UNIX_1@__BASE_PLATFORM_SRC_OBJECTS_1 = $(COND_PLATFORM_UNIX_1___BASE_PLATFORM_SRC_OBJECTS_1)
 COND_PLATFORM_WIN32_1___BASE_PLATFORM_SRC_OBJECTS_1 =  \
 	monolib_basemsw.o \
@@ -6133,7 +5936,7 @@ COND_PLATFORM_WIN32_1___BASE_PLATFORM_SRC_OBJECTS_1 =  \
 @COND_PLATFORM_WIN32_1@__BASE_AND_GUI_PLATFORM_SRC_OBJECTS_1 \
 @COND_PLATFORM_WIN32_1@	= monolib_main.o monolib_msw_volume.o
 @COND_TOOLKIT_OSX_COCOA@__BASE_AND_GUI_TOOLKIT_SRC_OBJECTS_1 \
-@COND_TOOLKIT_OSX_COCOA@	= monolib_cocoa_utils.o monolib_osx_volume.o
+@COND_TOOLKIT_OSX_COCOA@	= monolib_cocoa_utils.o
 COND_PLATFORM_MACOSX_1___NET_PLATFORM_SRC_OBJECTS_1 =  \
 	monolib_socketiohandler.o \
 	monolib_sockunix.o \
@@ -6843,6 +6646,7 @@ COND_TOOLKIT_GTK_TOOLKIT_VERSION_2___LOWLEVEL_SRC_OBJECTS_2 =  \
 	monolib_gtk_window.o \
 	monolib_gtk_mimetype.o \
 	monolib_gtk_power.o \
+	monolib_wayland.o \
 	monolib_gtk_dcclient.o \
 	monolib_gtk_dcmemory.o \
 	monolib_gtk_dcscreen.o
@@ -6884,7 +6688,8 @@ COND_TOOLKIT_GTK_TOOLKIT_VERSION_3___LOWLEVEL_SRC_OBJECTS_2 =  \
 	monolib_win_gtk.o \
 	monolib_gtk_window.o \
 	monolib_gtk_mimetype.o \
-	monolib_gtk_power.o
+	monolib_gtk_power.o \
+	monolib_wayland.o
 @COND_TOOLKIT_GTK_TOOLKIT_VERSION_3@__LOWLEVEL_SRC_OBJECTS_2 = $(COND_TOOLKIT_GTK_TOOLKIT_VERSION_3___LOWLEVEL_SRC_OBJECTS_2)
 COND_TOOLKIT_GTK_TOOLKIT_VERSION_4___LOWLEVEL_SRC_OBJECTS_2 =  \
 	$(__GTK_PLATFORM_SRC_OBJECTS_27) \
@@ -6923,7 +6728,8 @@ COND_TOOLKIT_GTK_TOOLKIT_VERSION_4___LOWLEVEL_SRC_OBJECTS_2 =  \
 	monolib_win_gtk.o \
 	monolib_gtk_window.o \
 	monolib_gtk_mimetype.o \
-	monolib_gtk_power.o
+	monolib_gtk_power.o \
+	monolib_wayland.o
 @COND_TOOLKIT_GTK_TOOLKIT_VERSION_4@__LOWLEVEL_SRC_OBJECTS_2 = $(COND_TOOLKIT_GTK_TOOLKIT_VERSION_4___LOWLEVEL_SRC_OBJECTS_2)
 COND_TOOLKIT_MSW___LOWLEVEL_SRC_OBJECTS_2 =  \
 	monolib_activex.o \
@@ -7375,11 +7181,15 @@ COND_TOOLKIT_OSX_IPHONE___GUI_SRC_OBJECTS_1 =  \
 	monolib_iphone_anybutton.o \
 	monolib_iphone_button.o \
 	monolib_iphone_checkbox.o \
+	monolib_iphone_choice.o \
+	monolib_iphone_colour.o \
 	monolib_iphone_dialog.o \
 	monolib_iphone_evtloop.o \
 	monolib_iphone_gauge.o \
+	monolib_iphone_listbox.o \
 	monolib_iphone_msgdlg.o \
 	monolib_iphone_nonownedwnd.o \
+	monolib_iphone_notebook.o \
 	monolib_iphone_scrolbar.o \
 	monolib_iphone_slider.o \
 	monolib_iphone_stattext.o \
@@ -7579,6 +7389,7 @@ COND_TOOLKIT_GTK_TOOLKIT_VERSION_2___LOWLEVEL_SRC_OBJECTS_3 =  \
 	monolib_gtk_window.o \
 	monolib_gtk_mimetype.o \
 	monolib_gtk_power.o \
+	monolib_wayland.o \
 	monolib_gtk_dcclient.o \
 	monolib_gtk_dcmemory.o \
 	monolib_gtk_dcscreen.o
@@ -7620,7 +7431,8 @@ COND_TOOLKIT_GTK_TOOLKIT_VERSION_3___LOWLEVEL_SRC_OBJECTS_3 =  \
 	monolib_win_gtk.o \
 	monolib_gtk_window.o \
 	monolib_gtk_mimetype.o \
-	monolib_gtk_power.o
+	monolib_gtk_power.o \
+	monolib_wayland.o
 @COND_TOOLKIT_GTK_TOOLKIT_VERSION_3@__LOWLEVEL_SRC_OBJECTS_3 = $(COND_TOOLKIT_GTK_TOOLKIT_VERSION_3___LOWLEVEL_SRC_OBJECTS_3)
 COND_TOOLKIT_GTK_TOOLKIT_VERSION_4___LOWLEVEL_SRC_OBJECTS_3 =  \
 	$(__GTK_PLATFORM_SRC_OBJECTS_27) \
@@ -7659,7 +7471,8 @@ COND_TOOLKIT_GTK_TOOLKIT_VERSION_4___LOWLEVEL_SRC_OBJECTS_3 =  \
 	monolib_win_gtk.o \
 	monolib_gtk_window.o \
 	monolib_gtk_mimetype.o \
-	monolib_gtk_power.o
+	monolib_gtk_power.o \
+	monolib_wayland.o
 @COND_TOOLKIT_GTK_TOOLKIT_VERSION_4@__LOWLEVEL_SRC_OBJECTS_3 = $(COND_TOOLKIT_GTK_TOOLKIT_VERSION_4___LOWLEVEL_SRC_OBJECTS_3)
 COND_TOOLKIT_MSW___LOWLEVEL_SRC_OBJECTS_3 =  \
 	monolib_activex.o \
@@ -7809,6 +7622,7 @@ COND_USE_STC_1___MONOLIB_STC_SRC_OBJECTS_1 =  \
 	monolib_PlatWX.o \
 	monolib_ScintillaWX.o \
 	monolib_xh_styledtextctrl.o \
+	monolib_minimap.o \
 	$(__STC_PLATFORM_SRC_OBJECTS_1)
 @COND_USE_STC_1@__MONOLIB_STC_SRC_OBJECTS_1 = $(COND_USE_STC_1___MONOLIB_STC_SRC_OBJECTS_1)
 @COND_TOOLKIT_OSX_COCOA@__STC_PLATFORM_SRC_OBJECTS_1 \
@@ -7883,13 +7697,13 @@ COND_USE_SOVERSOLARIS_1___basedll___so_symlinks_uninst_cmd = rm -f \
 @COND_USE_SOVERSOLARIS_1@__basedll___so_symlinks_uninst_cmd = $(COND_USE_SOVERSOLARIS_1___basedll___so_symlinks_uninst_cmd)
 @COND_PLATFORM_WIN32_1@__basedll___win32rc = basedll_version_rc.o
 COND_PLATFORM_MACOSX_1___BASE_PLATFORM_SRC_OBJECTS_2 =  \
-	basedll_core_mimetype.o \
 	basedll_cfstring.o \
 	basedll_evtloop_cf.o \
 	basedll_strconv_cf.o \
 	basedll_utils_base.o \
 	basedll_core_secretstore.o \
 	basedll_core_stdpaths.o \
+	basedll_osx_volume.o \
 	basedll_fdiodispatcher.o \
 	basedll_selectdispatcher.o \
 	basedll_appunix.o \
@@ -7906,9 +7720,13 @@ COND_PLATFORM_MACOSX_1___BASE_PLATFORM_SRC_OBJECTS_2 =  \
 	basedll_wakeuppipe.o \
 	basedll_fswatcher_kqueue.o \
 	basedll_fswatcher_fsevents.o \
-	basedll_core_uilocale.o
+	basedll_core_uilocale.o \
+	basedll_core_mimetype.o
 @COND_PLATFORM_MACOSX_1@__BASE_PLATFORM_SRC_OBJECTS_2 = $(COND_PLATFORM_MACOSX_1___BASE_PLATFORM_SRC_OBJECTS_2)
 COND_PLATFORM_UNIX_1___BASE_PLATFORM_SRC_OBJECTS_2 =  \
+	basedll_fswatcher_inotify.o \
+	basedll_unix_stdpaths.o \
+	basedll_unix_secretstore.o \
 	basedll_fdiodispatcher.o \
 	basedll_selectdispatcher.o \
 	basedll_appunix.o \
@@ -7925,10 +7743,7 @@ COND_PLATFORM_UNIX_1___BASE_PLATFORM_SRC_OBJECTS_2 =  \
 	basedll_wakeuppipe.o \
 	basedll_fswatcher_kqueue.o \
 	basedll_unix_mimetype.o \
-	basedll_unix_uilocale.o \
-	basedll_fswatcher_inotify.o \
-	basedll_unix_stdpaths.o \
-	basedll_unix_secretstore.o
+	basedll_unix_uilocale.o
 @COND_PLATFORM_UNIX_1@__BASE_PLATFORM_SRC_OBJECTS_2 = $(COND_PLATFORM_UNIX_1___BASE_PLATFORM_SRC_OBJECTS_2)
 COND_PLATFORM_WIN32_1___BASE_PLATFORM_SRC_OBJECTS_2 =  \
 	basedll_basemsw.o \
@@ -7955,7 +7770,7 @@ COND_PLATFORM_WIN32_1___BASE_PLATFORM_SRC_OBJECTS_2 =  \
 @COND_PLATFORM_WIN32_1@__BASE_AND_GUI_PLATFORM_SRC_OBJECTS_2 \
 @COND_PLATFORM_WIN32_1@	= basedll_main.o basedll_msw_volume.o
 @COND_TOOLKIT_OSX_COCOA@__BASE_AND_GUI_TOOLKIT_SRC_OBJECTS_2 \
-@COND_TOOLKIT_OSX_COCOA@	= basedll_cocoa_utils.o basedll_osx_volume.o
+@COND_TOOLKIT_OSX_COCOA@	= basedll_cocoa_utils.o
 COND_MONOLITHIC_0_SHARED_0___baselib___depname = \
 	$(LIBDIRNAME)/$(LIBPREFIX)wx_base$(WXBASEPORT)u$(WXDEBUGFLAG)$(WX_LIB_FLAVOUR)-$(WX_RELEASE)$(HOST_SUFFIX)$(LIBEXT)
 @COND_MONOLITHIC_0_SHARED_0@__baselib___depname = $(COND_MONOLITHIC_0_SHARED_0___baselib___depname)
@@ -7968,13 +7783,13 @@ COND_MONOLITHIC_0_SHARED_0___baselib___depname = \
 @COND_USE_PCH_1@_____pch_wxprec_baselib_wx_wxprec_h_gch___depname \
 @COND_USE_PCH_1@	= ./.pch/wxprec_baselib/wx/wxprec.h.gch
 COND_PLATFORM_MACOSX_1___BASE_PLATFORM_SRC_OBJECTS_3 =  \
-	baselib_core_mimetype.o \
 	baselib_cfstring.o \
 	baselib_evtloop_cf.o \
 	baselib_strconv_cf.o \
 	baselib_utils_base.o \
 	baselib_core_secretstore.o \
 	baselib_core_stdpaths.o \
+	baselib_osx_volume.o \
 	baselib_fdiodispatcher.o \
 	baselib_selectdispatcher.o \
 	baselib_appunix.o \
@@ -7991,9 +7806,13 @@ COND_PLATFORM_MACOSX_1___BASE_PLATFORM_SRC_OBJECTS_3 =  \
 	baselib_wakeuppipe.o \
 	baselib_fswatcher_kqueue.o \
 	baselib_fswatcher_fsevents.o \
-	baselib_core_uilocale.o
+	baselib_core_uilocale.o \
+	baselib_core_mimetype.o
 @COND_PLATFORM_MACOSX_1@__BASE_PLATFORM_SRC_OBJECTS_3 = $(COND_PLATFORM_MACOSX_1___BASE_PLATFORM_SRC_OBJECTS_3)
 COND_PLATFORM_UNIX_1___BASE_PLATFORM_SRC_OBJECTS_3 =  \
+	baselib_fswatcher_inotify.o \
+	baselib_unix_stdpaths.o \
+	baselib_unix_secretstore.o \
 	baselib_fdiodispatcher.o \
 	baselib_selectdispatcher.o \
 	baselib_appunix.o \
@@ -8010,10 +7829,7 @@ COND_PLATFORM_UNIX_1___BASE_PLATFORM_SRC_OBJECTS_3 =  \
 	baselib_wakeuppipe.o \
 	baselib_fswatcher_kqueue.o \
 	baselib_unix_mimetype.o \
-	baselib_unix_uilocale.o \
-	baselib_fswatcher_inotify.o \
-	baselib_unix_stdpaths.o \
-	baselib_unix_secretstore.o
+	baselib_unix_uilocale.o
 @COND_PLATFORM_UNIX_1@__BASE_PLATFORM_SRC_OBJECTS_3 = $(COND_PLATFORM_UNIX_1___BASE_PLATFORM_SRC_OBJECTS_3)
 COND_PLATFORM_WIN32_1___BASE_PLATFORM_SRC_OBJECTS_3 =  \
 	baselib_basemsw.o \
@@ -8040,7 +7856,7 @@ COND_PLATFORM_WIN32_1___BASE_PLATFORM_SRC_OBJECTS_3 =  \
 @COND_PLATFORM_WIN32_1@__BASE_AND_GUI_PLATFORM_SRC_OBJECTS_3 \
 @COND_PLATFORM_WIN32_1@	= baselib_main.o baselib_msw_volume.o
 @COND_TOOLKIT_OSX_COCOA@__BASE_AND_GUI_TOOLKIT_SRC_OBJECTS_3 \
-@COND_TOOLKIT_OSX_COCOA@	= baselib_cocoa_utils.o baselib_osx_volume.o
+@COND_TOOLKIT_OSX_COCOA@	= baselib_cocoa_utils.o
 @COND_SHARED_1@____wxbase_namedll_DEP = $(__basedll___depname)
 @COND_SHARED_0@____wxbase_namelib_DEP = $(__baselib___depname)
 COND_MONOLITHIC_0_SHARED_1___netdll___depname = \
@@ -8211,9 +8027,9 @@ COND_USE_SOVERSOLARIS_1___coredll___so_symlinks_uninst_cmd = rm -f \
 @COND_USE_SOVERSOLARIS_1@__coredll___so_symlinks_uninst_cmd = $(COND_USE_SOVERSOLARIS_1___coredll___so_symlinks_uninst_cmd)
 @COND_PLATFORM_WIN32_1@__coredll___win32rc = coredll_version_rc.o
 @COND_PLATFORM_WIN32_1@__BASE_AND_GUI_PLATFORM_SRC_OBJECTS_4 \
-@COND_PLATFORM_WIN32_1@	= coredll_main.o coredll_msw_volume.o
+@COND_PLATFORM_WIN32_1@	= coredll_main.o coredll_volume.o
 @COND_TOOLKIT_OSX_COCOA@__BASE_AND_GUI_TOOLKIT_SRC_OBJECTS_4 \
-@COND_TOOLKIT_OSX_COCOA@	= coredll_cocoa_utils.o coredll_osx_volume.o
+@COND_TOOLKIT_OSX_COCOA@	= coredll_cocoa_utils.o
 COND_USE_GUI_1_WXUNIV_0___CORE_SRC_OBJECTS_2 =  \
 	$(__LOWLEVEL_SRC_OBJECTS_4) \
 	$(__PLATFORM_SRC_OBJECTS_8) \
@@ -8761,6 +8577,7 @@ COND_TOOLKIT_GTK_TOOLKIT_VERSION_2___LOWLEVEL_SRC_OBJECTS_4 =  \
 	coredll_gtk_window.o \
 	coredll_mimetype.o \
 	coredll_gtk_power.o \
+	coredll_wayland.o \
 	coredll_gtk_dcclient.o \
 	coredll_gtk_dcmemory.o \
 	coredll_gtk_dcscreen.o
@@ -8802,7 +8619,8 @@ COND_TOOLKIT_GTK_TOOLKIT_VERSION_3___LOWLEVEL_SRC_OBJECTS_4 =  \
 	coredll_win_gtk.o \
 	coredll_gtk_window.o \
 	coredll_mimetype.o \
-	coredll_gtk_power.o
+	coredll_gtk_power.o \
+	coredll_wayland.o
 @COND_TOOLKIT_GTK_TOOLKIT_VERSION_3@__LOWLEVEL_SRC_OBJECTS_4 = $(COND_TOOLKIT_GTK_TOOLKIT_VERSION_3___LOWLEVEL_SRC_OBJECTS_4)
 COND_TOOLKIT_GTK_TOOLKIT_VERSION_4___LOWLEVEL_SRC_OBJECTS_4 =  \
 	$(__GTK_PLATFORM_SRC_OBJECTS_1_4) \
@@ -8841,7 +8659,8 @@ COND_TOOLKIT_GTK_TOOLKIT_VERSION_4___LOWLEVEL_SRC_OBJECTS_4 =  \
 	coredll_win_gtk.o \
 	coredll_gtk_window.o \
 	coredll_mimetype.o \
-	coredll_gtk_power.o
+	coredll_gtk_power.o \
+	coredll_wayland.o
 @COND_TOOLKIT_GTK_TOOLKIT_VERSION_4@__LOWLEVEL_SRC_OBJECTS_4 = $(COND_TOOLKIT_GTK_TOOLKIT_VERSION_4___LOWLEVEL_SRC_OBJECTS_4)
 COND_TOOLKIT_MSW___LOWLEVEL_SRC_OBJECTS_4 =  \
 	coredll_activex.o \
@@ -9293,11 +9112,15 @@ COND_TOOLKIT_OSX_IPHONE___GUI_SRC_OBJECTS_2 =  \
 	coredll_iphone_anybutton.o \
 	coredll_iphone_button.o \
 	coredll_iphone_checkbox.o \
+	coredll_iphone_choice.o \
+	coredll_iphone_colour.o \
 	coredll_iphone_dialog.o \
 	coredll_iphone_evtloop.o \
 	coredll_iphone_gauge.o \
+	coredll_iphone_listbox.o \
 	coredll_iphone_msgdlg.o \
 	coredll_iphone_nonownedwnd.o \
+	coredll_iphone_notebook.o \
 	coredll_iphone_scrolbar.o \
 	coredll_iphone_slider.o \
 	coredll_iphone_stattext.o \
@@ -9497,6 +9320,7 @@ COND_TOOLKIT_GTK_TOOLKIT_VERSION_2___LOWLEVEL_SRC_OBJECTS_5 =  \
 	coredll_gtk_window.o \
 	coredll_mimetype.o \
 	coredll_gtk_power.o \
+	coredll_wayland.o \
 	coredll_gtk_dcclient.o \
 	coredll_gtk_dcmemory.o \
 	coredll_gtk_dcscreen.o
@@ -9538,7 +9362,8 @@ COND_TOOLKIT_GTK_TOOLKIT_VERSION_3___LOWLEVEL_SRC_OBJECTS_5 =  \
 	coredll_win_gtk.o \
 	coredll_gtk_window.o \
 	coredll_mimetype.o \
-	coredll_gtk_power.o
+	coredll_gtk_power.o \
+	coredll_wayland.o
 @COND_TOOLKIT_GTK_TOOLKIT_VERSION_3@__LOWLEVEL_SRC_OBJECTS_5 = $(COND_TOOLKIT_GTK_TOOLKIT_VERSION_3___LOWLEVEL_SRC_OBJECTS_5)
 COND_TOOLKIT_GTK_TOOLKIT_VERSION_4___LOWLEVEL_SRC_OBJECTS_5 =  \
 	$(__GTK_PLATFORM_SRC_OBJECTS_1_4) \
@@ -9577,7 +9402,8 @@ COND_TOOLKIT_GTK_TOOLKIT_VERSION_4___LOWLEVEL_SRC_OBJECTS_5 =  \
 	coredll_win_gtk.o \
 	coredll_gtk_window.o \
 	coredll_mimetype.o \
-	coredll_gtk_power.o
+	coredll_gtk_power.o \
+	coredll_wayland.o
 @COND_TOOLKIT_GTK_TOOLKIT_VERSION_4@__LOWLEVEL_SRC_OBJECTS_5 = $(COND_TOOLKIT_GTK_TOOLKIT_VERSION_4___LOWLEVEL_SRC_OBJECTS_5)
 COND_TOOLKIT_MSW___LOWLEVEL_SRC_OBJECTS_5 =  \
 	coredll_activex.o \
@@ -9711,9 +9537,9 @@ COND_MONOLITHIC_0_SHARED_0_USE_GUI_1___corelib___depname = \
 @COND_USE_PCH_1@_____pch_wxprec_corelib_wx_wxprec_h_gch___depname \
 @COND_USE_PCH_1@	= ./.pch/wxprec_corelib/wx/wxprec.h.gch
 @COND_PLATFORM_WIN32_1@__BASE_AND_GUI_PLATFORM_SRC_OBJECTS_5 \
-@COND_PLATFORM_WIN32_1@	= corelib_main.o corelib_msw_volume.o
+@COND_PLATFORM_WIN32_1@	= corelib_main.o corelib_volume.o
 @COND_TOOLKIT_OSX_COCOA@__BASE_AND_GUI_TOOLKIT_SRC_OBJECTS_5 \
-@COND_TOOLKIT_OSX_COCOA@	= corelib_cocoa_utils.o corelib_osx_volume.o
+@COND_TOOLKIT_OSX_COCOA@	= corelib_cocoa_utils.o
 COND_USE_GUI_1_WXUNIV_0___CORE_SRC_OBJECTS_3 =  \
 	$(__LOWLEVEL_SRC_OBJECTS_6) \
 	$(__PLATFORM_SRC_OBJECTS_9) \
@@ -10261,6 +10087,7 @@ COND_TOOLKIT_GTK_TOOLKIT_VERSION_2___LOWLEVEL_SRC_OBJECTS_6 =  \
 	corelib_gtk_window.o \
 	corelib_mimetype.o \
 	corelib_gtk_power.o \
+	corelib_wayland.o \
 	corelib_gtk_dcclient.o \
 	corelib_gtk_dcmemory.o \
 	corelib_gtk_dcscreen.o
@@ -10302,7 +10129,8 @@ COND_TOOLKIT_GTK_TOOLKIT_VERSION_3___LOWLEVEL_SRC_OBJECTS_6 =  \
 	corelib_win_gtk.o \
 	corelib_gtk_window.o \
 	corelib_mimetype.o \
-	corelib_gtk_power.o
+	corelib_gtk_power.o \
+	corelib_wayland.o
 @COND_TOOLKIT_GTK_TOOLKIT_VERSION_3@__LOWLEVEL_SRC_OBJECTS_6 = $(COND_TOOLKIT_GTK_TOOLKIT_VERSION_3___LOWLEVEL_SRC_OBJECTS_6)
 COND_TOOLKIT_GTK_TOOLKIT_VERSION_4___LOWLEVEL_SRC_OBJECTS_6 =  \
 	$(__GTK_PLATFORM_SRC_OBJECTS_2_2) \
@@ -10341,7 +10169,8 @@ COND_TOOLKIT_GTK_TOOLKIT_VERSION_4___LOWLEVEL_SRC_OBJECTS_6 =  \
 	corelib_win_gtk.o \
 	corelib_gtk_window.o \
 	corelib_mimetype.o \
-	corelib_gtk_power.o
+	corelib_gtk_power.o \
+	corelib_wayland.o
 @COND_TOOLKIT_GTK_TOOLKIT_VERSION_4@__LOWLEVEL_SRC_OBJECTS_6 = $(COND_TOOLKIT_GTK_TOOLKIT_VERSION_4___LOWLEVEL_SRC_OBJECTS_6)
 COND_TOOLKIT_MSW___LOWLEVEL_SRC_OBJECTS_6 =  \
 	corelib_activex.o \
@@ -10793,11 +10622,15 @@ COND_TOOLKIT_OSX_IPHONE___GUI_SRC_OBJECTS_3 =  \
 	corelib_iphone_anybutton.o \
 	corelib_iphone_button.o \
 	corelib_iphone_checkbox.o \
+	corelib_iphone_choice.o \
+	corelib_iphone_colour.o \
 	corelib_iphone_dialog.o \
 	corelib_iphone_evtloop.o \
 	corelib_iphone_gauge.o \
+	corelib_iphone_listbox.o \
 	corelib_iphone_msgdlg.o \
 	corelib_iphone_nonownedwnd.o \
+	corelib_iphone_notebook.o \
 	corelib_iphone_scrolbar.o \
 	corelib_iphone_slider.o \
 	corelib_iphone_stattext.o \
@@ -10997,6 +10830,7 @@ COND_TOOLKIT_GTK_TOOLKIT_VERSION_2___LOWLEVEL_SRC_OBJECTS_7 =  \
 	corelib_gtk_window.o \
 	corelib_mimetype.o \
 	corelib_gtk_power.o \
+	corelib_wayland.o \
 	corelib_gtk_dcclient.o \
 	corelib_gtk_dcmemory.o \
 	corelib_gtk_dcscreen.o
@@ -11038,7 +10872,8 @@ COND_TOOLKIT_GTK_TOOLKIT_VERSION_3___LOWLEVEL_SRC_OBJECTS_7 =  \
 	corelib_win_gtk.o \
 	corelib_gtk_window.o \
 	corelib_mimetype.o \
-	corelib_gtk_power.o
+	corelib_gtk_power.o \
+	corelib_wayland.o
 @COND_TOOLKIT_GTK_TOOLKIT_VERSION_3@__LOWLEVEL_SRC_OBJECTS_7 = $(COND_TOOLKIT_GTK_TOOLKIT_VERSION_3___LOWLEVEL_SRC_OBJECTS_7)
 COND_TOOLKIT_GTK_TOOLKIT_VERSION_4___LOWLEVEL_SRC_OBJECTS_7 =  \
 	$(__GTK_PLATFORM_SRC_OBJECTS_2_2) \
@@ -11077,7 +10912,8 @@ COND_TOOLKIT_GTK_TOOLKIT_VERSION_4___LOWLEVEL_SRC_OBJECTS_7 =  \
 	corelib_win_gtk.o \
 	corelib_gtk_window.o \
 	corelib_mimetype.o \
-	corelib_gtk_power.o
+	corelib_gtk_power.o \
+	corelib_wayland.o
 @COND_TOOLKIT_GTK_TOOLKIT_VERSION_4@__LOWLEVEL_SRC_OBJECTS_7 = $(COND_TOOLKIT_GTK_TOOLKIT_VERSION_4___LOWLEVEL_SRC_OBJECTS_7)
 COND_TOOLKIT_MSW___LOWLEVEL_SRC_OBJECTS_7 =  \
 	corelib_activex.o \
@@ -12320,7 +12156,8 @@ COND_USE_SOVERSOLARIS_1___gldll___so_symlinks_uninst_cmd = rm -f \
 @COND_USE_SOVERSOLARIS_1@__gldll___so_symlinks_uninst_cmd = $(COND_USE_SOVERSOLARIS_1___gldll___so_symlinks_uninst_cmd)
 @COND_PLATFORM_WIN32_1@__gldll___win32rc = gldll_version_rc.o
 @COND_TOOLKIT_GTK@__OPENGL_PLATFORM_SRC_OBJECTS = \
-@COND_TOOLKIT_GTK@	gldll_glx11.o gldll_gtk_glcanvas.o gldll_glegl.o
+@COND_TOOLKIT_GTK@	gldll_glx11.o gldll_gtk_glcanvas.o gldll_glegl.o \
+@COND_TOOLKIT_GTK@	gldll_unix_glcanvas.o
 @COND_TOOLKIT_MSW@__OPENGL_PLATFORM_SRC_OBJECTS = gldll_msw_glcanvas.o
 @COND_TOOLKIT_OSX_COCOA@__OPENGL_PLATFORM_SRC_OBJECTS \
 @COND_TOOLKIT_OSX_COCOA@	= gldll_glcanvas_osx.o gldll_cocoa_glcanvas.o
@@ -12328,7 +12165,7 @@ COND_USE_SOVERSOLARIS_1___gldll___so_symlinks_uninst_cmd = rm -f \
 @COND_TOOLKIT_OSX_IPHONE@	= gldll_glcanvas_osx.o gldll_iphone_glcanvas.o
 @COND_TOOLKIT_QT@__OPENGL_PLATFORM_SRC_OBJECTS = gldll_qt_glcanvas.o
 @COND_TOOLKIT_X11@__OPENGL_PLATFORM_SRC_OBJECTS = \
-@COND_TOOLKIT_X11@	gldll_x11_glcanvas.o gldll_glx11.o
+@COND_TOOLKIT_X11@	gldll_x11_glcanvas.o gldll_glx11.o gldll_unix_glcanvas.o
 COND_MONOLITHIC_0___WXLIBGLDEP_CORE_p = \
 	-lwx_$(PORTNAME)$(WXUNIVNAME)u$(WXDEBUGFLAG)$(WX_LIB_FLAVOUR)_core-$(WX_RELEASE)$(HOST_SUFFIX)
 @COND_MONOLITHIC_0@__WXLIBGLDEP_CORE_p = $(COND_MONOLITHIC_0___WXLIBGLDEP_CORE_p)
@@ -12351,7 +12188,8 @@ COND_SHARED_0_USE_GUI_1_USE_OPENGL_1___gllib___depname = \
 @COND_USE_PCH_1@_____pch_wxprec_gllib_wx_wxprec_h_gch___depname \
 @COND_USE_PCH_1@	= ./.pch/wxprec_gllib/wx/wxprec.h.gch
 @COND_TOOLKIT_GTK@__OPENGL_PLATFORM_SRC_OBJECTS_1 = \
-@COND_TOOLKIT_GTK@	gllib_glx11.o gllib_gtk_glcanvas.o gllib_glegl.o
+@COND_TOOLKIT_GTK@	gllib_glx11.o gllib_gtk_glcanvas.o gllib_glegl.o \
+@COND_TOOLKIT_GTK@	gllib_unix_glcanvas.o
 @COND_TOOLKIT_MSW@__OPENGL_PLATFORM_SRC_OBJECTS_1 = gllib_msw_glcanvas.o
 @COND_TOOLKIT_OSX_COCOA@__OPENGL_PLATFORM_SRC_OBJECTS_1 \
 @COND_TOOLKIT_OSX_COCOA@	= gllib_glcanvas_osx.o gllib_cocoa_glcanvas.o
@@ -12359,7 +12197,7 @@ COND_SHARED_0_USE_GUI_1_USE_OPENGL_1___gllib___depname = \
 @COND_TOOLKIT_OSX_IPHONE@	= gllib_glcanvas_osx.o gllib_iphone_glcanvas.o
 @COND_TOOLKIT_QT@__OPENGL_PLATFORM_SRC_OBJECTS_1 = gllib_qt_glcanvas.o
 @COND_TOOLKIT_X11@__OPENGL_PLATFORM_SRC_OBJECTS_1 = \
-@COND_TOOLKIT_X11@	gllib_x11_glcanvas.o gllib_glx11.o
+@COND_TOOLKIT_X11@	gllib_x11_glcanvas.o gllib_glx11.o gllib_unix_glcanvas.o
 @COND_SHARED_1@____wxgl_namedll_DEP = $(__gldll___depname)
 @COND_SHARED_0@____wxgl_namelib_DEP = $(__gllib___depname)
 COND_WITH_PLUGIN_SDL_1___sound_sdl___depname = \
@@ -13967,11 +13805,17 @@ locale_uninstall:
 wxregex_pcre2_auto_possess.o: $(srcdir)/3rdparty/pcre/src/pcre2_auto_possess.c
 	$(CCC) -c -o $@ $(WXREGEX_CFLAGS) $(srcdir)/3rdparty/pcre/src/pcre2_auto_possess.c
 
+wxregex_pcre2_chartables.o: $(srcdir)/3rdparty/pcre/src/pcre2_chartables.c
+	$(CCC) -c -o $@ $(WXREGEX_CFLAGS) $(srcdir)/3rdparty/pcre/src/pcre2_chartables.c
+
 wxregex_pcre2_chkdint.o: $(srcdir)/3rdparty/pcre/src/pcre2_chkdint.c
 	$(CCC) -c -o $@ $(WXREGEX_CFLAGS) $(srcdir)/3rdparty/pcre/src/pcre2_chkdint.c
 
 wxregex_pcre2_compile.o: $(srcdir)/3rdparty/pcre/src/pcre2_compile.c
 	$(CCC) -c -o $@ $(WXREGEX_CFLAGS) $(srcdir)/3rdparty/pcre/src/pcre2_compile.c
+
+wxregex_pcre2_compile_cgroup.o: $(srcdir)/3rdparty/pcre/src/pcre2_compile_cgroup.c
+	$(CCC) -c -o $@ $(WXREGEX_CFLAGS) $(srcdir)/3rdparty/pcre/src/pcre2_compile_cgroup.c
 
 wxregex_pcre2_compile_class.o: $(srcdir)/3rdparty/pcre/src/pcre2_compile_class.c
 	$(CCC) -c -o $@ $(WXREGEX_CFLAGS) $(srcdir)/3rdparty/pcre/src/pcre2_compile_class.c
@@ -14008,6 +13852,9 @@ wxregex_pcre2_match.o: $(srcdir)/3rdparty/pcre/src/pcre2_match.c
 
 wxregex_pcre2_match_data.o: $(srcdir)/3rdparty/pcre/src/pcre2_match_data.c
 	$(CCC) -c -o $@ $(WXREGEX_CFLAGS) $(srcdir)/3rdparty/pcre/src/pcre2_match_data.c
+
+wxregex_pcre2_match_next.o: $(srcdir)/3rdparty/pcre/src/pcre2_match_next.c
+	$(CCC) -c -o $@ $(WXREGEX_CFLAGS) $(srcdir)/3rdparty/pcre/src/pcre2_match_next.c
 
 wxregex_pcre2_newline.o: $(srcdir)/3rdparty/pcre/src/pcre2_newline.c
 	$(CCC) -c -o $@ $(WXREGEX_CFLAGS) $(srcdir)/3rdparty/pcre/src/pcre2_newline.c
@@ -14047,9 +13894,6 @@ wxregex_pcre2_valid_utf.o: $(srcdir)/3rdparty/pcre/src/pcre2_valid_utf.c
 
 wxregex_pcre2_xclass.o: $(srcdir)/3rdparty/pcre/src/pcre2_xclass.c
 	$(CCC) -c -o $@ $(WXREGEX_CFLAGS) $(srcdir)/3rdparty/pcre/src/pcre2_xclass.c
-
-wxregex_pcre2_chartables.o: $(srcdir)/3rdparty/pcre/src/pcre2_chartables.c
-	$(CCC) -c -o $@ $(WXREGEX_CFLAGS) $(srcdir)/3rdparty/pcre/src/pcre2_chartables.c
 
 wxzlib_adler32.o: $(srcdir)/src/zlib/adler32.c
 	$(CCC) -c -o $@ $(WXZLIB_CFLAGS) $(srcdir)/src/zlib/adler32.c
@@ -14321,8 +14165,14 @@ wxwebp_filters_sse2.o: $(srcdir)/3rdparty/libwebp/src/dsp/filters_sse2.c
 wxwebp_lossless.o: $(srcdir)/3rdparty/libwebp/src/dsp/lossless.c
 	$(CCC) -c -o $@ $(WXWEBP_CFLAGS) $(srcdir)/3rdparty/libwebp/src/dsp/lossless.c
 
+wxwebp_lossless_avx2.o: $(srcdir)/3rdparty/libwebp/src/dsp/lossless_avx2.c
+	$(CCC) -c -o $@ $(WXWEBP_CFLAGS) $(srcdir)/3rdparty/libwebp/src/dsp/lossless_avx2.c
+
 wxwebp_lossless_enc.o: $(srcdir)/3rdparty/libwebp/src/dsp/lossless_enc.c
 	$(CCC) -c -o $@ $(WXWEBP_CFLAGS) $(srcdir)/3rdparty/libwebp/src/dsp/lossless_enc.c
+
+wxwebp_lossless_enc_avx2.o: $(srcdir)/3rdparty/libwebp/src/dsp/lossless_enc_avx2.c
+	$(CCC) -c -o $@ $(WXWEBP_CFLAGS) $(srcdir)/3rdparty/libwebp/src/dsp/lossless_enc_avx2.c
 
 wxwebp_lossless_enc_mips32.o: $(srcdir)/3rdparty/libwebp/src/dsp/lossless_enc_mips32.c
 	$(CCC) -c -o $@ $(WXWEBP_CFLAGS) $(srcdir)/3rdparty/libwebp/src/dsp/lossless_enc_mips32.c
@@ -15191,6 +15041,9 @@ wxlexilla_LexRust.o: $(srcdir)/src/stc/lexilla/lexers/LexRust.cxx
 wxlexilla_LexSAS.o: $(srcdir)/src/stc/lexilla/lexers/LexSAS.cxx
 	$(CXXC) -c -o $@ $(WXLEXILLA_CXXFLAGS) $(srcdir)/src/stc/lexilla/lexers/LexSAS.cxx
 
+wxlexilla_LexSINEX.o: $(srcdir)/src/stc/lexilla/lexers/LexSINEX.cxx
+	$(CXXC) -c -o $@ $(WXLEXILLA_CXXFLAGS) $(srcdir)/src/stc/lexilla/lexers/LexSINEX.cxx
+
 wxlexilla_LexSML.o: $(srcdir)/src/stc/lexilla/lexers/LexSML.cxx
 	$(CXXC) -c -o $@ $(WXLEXILLA_CXXFLAGS) $(srcdir)/src/stc/lexilla/lexers/LexSML.cxx
 
@@ -15563,12 +15416,6 @@ monodll_common_uilocale.o: $(srcdir)/src/common/uilocale.cpp $(MONODLL_ODEP)
 monodll_fs_data.o: $(srcdir)/src/common/fs_data.cpp $(MONODLL_ODEP)
 	$(CXXC) -c -o $@ $(MONODLL_CXXFLAGS) $(srcdir)/src/common/fs_data.cpp
 
-monodll_unix_mimetype.o: $(srcdir)/src/unix/mimetype.cpp $(MONODLL_ODEP)
-	$(CXXC) -c -o $@ $(MONODLL_CXXFLAGS) $(srcdir)/src/unix/mimetype.cpp
-
-monodll_unix_uilocale.o: $(srcdir)/src/unix/uilocale.cpp $(MONODLL_ODEP)
-	$(CXXC) -c -o $@ $(MONODLL_CXXFLAGS) $(srcdir)/src/unix/uilocale.cpp
-
 monodll_fswatcher_inotify.o: $(srcdir)/src/unix/fswatcher_inotify.cpp $(MONODLL_ODEP)
 	$(CXXC) -c -o $@ $(MONODLL_CXXFLAGS) $(srcdir)/src/unix/fswatcher_inotify.cpp
 
@@ -15577,6 +15424,12 @@ monodll_unix_stdpaths.o: $(srcdir)/src/unix/stdpaths.cpp $(MONODLL_ODEP)
 
 monodll_unix_secretstore.o: $(srcdir)/src/unix/secretstore.cpp $(MONODLL_ODEP)
 	$(CXXC) -c -o $@ $(MONODLL_CXXFLAGS) $(srcdir)/src/unix/secretstore.cpp
+
+monodll_unix_mimetype.o: $(srcdir)/src/unix/mimetype.cpp $(MONODLL_ODEP)
+	$(CXXC) -c -o $@ $(MONODLL_CXXFLAGS) $(srcdir)/src/unix/mimetype.cpp
+
+monodll_unix_uilocale.o: $(srcdir)/src/unix/uilocale.cpp $(MONODLL_ODEP)
+	$(CXXC) -c -o $@ $(MONODLL_CXXFLAGS) $(srcdir)/src/unix/uilocale.cpp
 
 monodll_basemsw.o: $(srcdir)/src/msw/basemsw.cpp $(MONODLL_ODEP)
 	$(CXXC) -c -o $@ $(MONODLL_CXXFLAGS) $(srcdir)/src/msw/basemsw.cpp
@@ -15638,9 +15491,6 @@ monodll_msw_secretstore.o: $(srcdir)/src/msw/secretstore.cpp $(MONODLL_ODEP)
 monodll_msw_uilocale.o: $(srcdir)/src/msw/uilocale.cpp $(MONODLL_ODEP)
 	$(CXXC) -c -o $@ $(MONODLL_CXXFLAGS) $(srcdir)/src/msw/uilocale.cpp
 
-monodll_core_mimetype.o: $(srcdir)/src/osx/core/mimetype.cpp $(MONODLL_ODEP)
-	$(CXXC) -c -o $@ $(MONODLL_CXXFLAGS) $(srcdir)/src/osx/core/mimetype.cpp
-
 monodll_cfstring.o: $(srcdir)/src/osx/core/cfstring.cpp $(MONODLL_ODEP)
 	$(CXXC) -c -o $@ $(MONODLL_CXXFLAGS) $(srcdir)/src/osx/core/cfstring.cpp
 
@@ -15659,11 +15509,17 @@ monodll_core_secretstore.o: $(srcdir)/src/osx/core/secretstore.cpp $(MONODLL_ODE
 monodll_core_stdpaths.o: $(srcdir)/src/osx/core/stdpaths.mm $(MONODLL_ODEP)
 	$(CXXC) -c -o $@ $(MONODLL_OBJCXXFLAGS) $(srcdir)/src/osx/core/stdpaths.mm
 
+monodll_osx_volume.o: $(srcdir)/src/osx/volume.mm $(MONODLL_ODEP)
+	$(CXXC) -c -o $@ $(MONODLL_OBJCXXFLAGS) $(srcdir)/src/osx/volume.mm
+
 monodll_fswatcher_fsevents.o: $(srcdir)/src/osx/fswatcher_fsevents.cpp $(MONODLL_ODEP)
 	$(CXXC) -c -o $@ $(MONODLL_CXXFLAGS) $(srcdir)/src/osx/fswatcher_fsevents.cpp
 
 monodll_core_uilocale.o: $(srcdir)/src/osx/core/uilocale.mm $(MONODLL_ODEP)
 	$(CXXC) -c -o $@ $(MONODLL_OBJCXXFLAGS) $(srcdir)/src/osx/core/uilocale.mm
+
+monodll_core_mimetype.o: $(srcdir)/src/osx/core/mimetype.cpp $(MONODLL_ODEP)
+	$(CXXC) -c -o $@ $(MONODLL_CXXFLAGS) $(srcdir)/src/osx/core/mimetype.cpp
 
 monodll_event.o: $(srcdir)/src/common/event.cpp $(MONODLL_ODEP)
 	$(CXXC) -c -o $@ $(MONODLL_CXXFLAGS) $(srcdir)/src/common/event.cpp
@@ -15685,9 +15541,6 @@ monodll_msw_volume.o: $(srcdir)/src/msw/volume.cpp $(MONODLL_ODEP)
 
 monodll_cocoa_utils.o: $(srcdir)/src/osx/cocoa/utils.mm $(MONODLL_ODEP)
 	$(CXXC) -c -o $@ $(MONODLL_OBJCXXFLAGS) $(srcdir)/src/osx/cocoa/utils.mm
-
-monodll_osx_volume.o: $(srcdir)/src/osx/volume.mm $(MONODLL_ODEP)
-	$(CXXC) -c -o $@ $(MONODLL_OBJCXXFLAGS) $(srcdir)/src/osx/volume.mm
 
 monodll_fs_inet.o: $(srcdir)/src/common/fs_inet.cpp $(MONODLL_ODEP)
 	$(CXXC) -c -o $@ $(MONODLL_CXXFLAGS) $(srcdir)/src/common/fs_inet.cpp
@@ -16094,6 +15947,12 @@ monodll_iphone_button.o: $(srcdir)/src/osx/iphone/button.mm $(MONODLL_ODEP)
 monodll_iphone_checkbox.o: $(srcdir)/src/osx/iphone/checkbox.mm $(MONODLL_ODEP)
 	$(CXXC) -c -o $@ $(MONODLL_OBJCXXFLAGS) $(srcdir)/src/osx/iphone/checkbox.mm
 
+monodll_iphone_choice.o: $(srcdir)/src/osx/iphone/choice.mm $(MONODLL_ODEP)
+	$(CXXC) -c -o $@ $(MONODLL_OBJCXXFLAGS) $(srcdir)/src/osx/iphone/choice.mm
+
+monodll_iphone_colour.o: $(srcdir)/src/osx/iphone/colour.mm $(MONODLL_ODEP)
+	$(CXXC) -c -o $@ $(MONODLL_OBJCXXFLAGS) $(srcdir)/src/osx/iphone/colour.mm
+
 monodll_iphone_dialog.o: $(srcdir)/src/osx/iphone/dialog.mm $(MONODLL_ODEP)
 	$(CXXC) -c -o $@ $(MONODLL_OBJCXXFLAGS) $(srcdir)/src/osx/iphone/dialog.mm
 
@@ -16103,11 +15962,17 @@ monodll_iphone_evtloop.o: $(srcdir)/src/osx/iphone/evtloop.mm $(MONODLL_ODEP)
 monodll_iphone_gauge.o: $(srcdir)/src/osx/iphone/gauge.mm $(MONODLL_ODEP)
 	$(CXXC) -c -o $@ $(MONODLL_OBJCXXFLAGS) $(srcdir)/src/osx/iphone/gauge.mm
 
+monodll_iphone_listbox.o: $(srcdir)/src/osx/iphone/listbox.mm $(MONODLL_ODEP)
+	$(CXXC) -c -o $@ $(MONODLL_OBJCXXFLAGS) $(srcdir)/src/osx/iphone/listbox.mm
+
 monodll_iphone_msgdlg.o: $(srcdir)/src/osx/iphone/msgdlg.mm $(MONODLL_ODEP)
 	$(CXXC) -c -o $@ $(MONODLL_OBJCXXFLAGS) $(srcdir)/src/osx/iphone/msgdlg.mm
 
 monodll_iphone_nonownedwnd.o: $(srcdir)/src/osx/iphone/nonownedwnd.mm $(MONODLL_ODEP)
 	$(CXXC) -c -o $@ $(MONODLL_OBJCXXFLAGS) $(srcdir)/src/osx/iphone/nonownedwnd.mm
+
+monodll_iphone_notebook.o: $(srcdir)/src/osx/iphone/notebook.mm $(MONODLL_ODEP)
+	$(CXXC) -c -o $@ $(MONODLL_OBJCXXFLAGS) $(srcdir)/src/osx/iphone/notebook.mm
 
 monodll_iphone_scrolbar.o: $(srcdir)/src/osx/iphone/scrolbar.mm $(MONODLL_ODEP)
 	$(CXXC) -c -o $@ $(MONODLL_OBJCXXFLAGS) $(srcdir)/src/osx/iphone/scrolbar.mm
@@ -17012,6 +16877,9 @@ monodll_ScintillaWX.o: $(srcdir)/src/stc/ScintillaWX.cpp $(MONODLL_ODEP)
 monodll_xh_styledtextctrl.o: $(srcdir)/src/xrc/xh_styledtextctrl.cpp $(MONODLL_ODEP)
 	$(CXXC) -c -o $@ $(MONODLL_CXXFLAGS) $(srcdir)/src/xrc/xh_styledtextctrl.cpp
 
+monodll_minimap.o: $(srcdir)/src/stc/minimap.cpp $(MONODLL_ODEP)
+	$(CXXC) -c -o $@ $(MONODLL_CXXFLAGS) $(srcdir)/src/stc/minimap.cpp
+
 monodll_PlatWXcocoa.o: $(srcdir)/src/stc/PlatWXcocoa.mm $(MONODLL_ODEP)
 	$(CXXC) -c -o $@ $(MONODLL_OBJCXXFLAGS) $(srcdir)/src/stc/PlatWXcocoa.mm
 
@@ -17869,6 +17737,15 @@ monodll_sound_sdl.o: $(srcdir)/src/unix/sound_sdl.cpp $(MONODLL_ODEP)
 
 @COND_TOOLKIT_GTK_TOOLKIT_VERSION_2_USE_GUI_1@monodll_gtk_power.o: $(srcdir)/src/gtk/power.cpp $(MONODLL_ODEP)
 @COND_TOOLKIT_GTK_TOOLKIT_VERSION_2_USE_GUI_1@	$(CXXC) -c -o $@ $(MONODLL_CXXFLAGS) $(srcdir)/src/gtk/power.cpp
+
+@COND_TOOLKIT_GTK_TOOLKIT_VERSION_4_USE_GUI_1@monodll_wayland.o: $(srcdir)/src/gtk/wayland.cpp $(MONODLL_ODEP)
+@COND_TOOLKIT_GTK_TOOLKIT_VERSION_4_USE_GUI_1@	$(CXXC) -c -o $@ $(MONODLL_CXXFLAGS) $(srcdir)/src/gtk/wayland.cpp
+
+@COND_TOOLKIT_GTK_TOOLKIT_VERSION_3_USE_GUI_1@monodll_wayland.o: $(srcdir)/src/gtk/wayland.cpp $(MONODLL_ODEP)
+@COND_TOOLKIT_GTK_TOOLKIT_VERSION_3_USE_GUI_1@	$(CXXC) -c -o $@ $(MONODLL_CXXFLAGS) $(srcdir)/src/gtk/wayland.cpp
+
+@COND_TOOLKIT_GTK_TOOLKIT_VERSION_2_USE_GUI_1@monodll_wayland.o: $(srcdir)/src/gtk/wayland.cpp $(MONODLL_ODEP)
+@COND_TOOLKIT_GTK_TOOLKIT_VERSION_2_USE_GUI_1@	$(CXXC) -c -o $@ $(MONODLL_CXXFLAGS) $(srcdir)/src/gtk/wayland.cpp
 
 @COND_TOOLKIT_GTK_TOOLKIT_VERSION_2_USE_GUI_1@monodll_gtk_dcclient.o: $(srcdir)/src/gtk/dcclient.cpp $(MONODLL_ODEP)
 @COND_TOOLKIT_GTK_TOOLKIT_VERSION_2_USE_GUI_1@	$(CXXC) -c -o $@ $(MONODLL_CXXFLAGS) $(srcdir)/src/gtk/dcclient.cpp
@@ -20324,12 +20201,6 @@ monolib_common_uilocale.o: $(srcdir)/src/common/uilocale.cpp $(MONOLIB_ODEP)
 monolib_fs_data.o: $(srcdir)/src/common/fs_data.cpp $(MONOLIB_ODEP)
 	$(CXXC) -c -o $@ $(MONOLIB_CXXFLAGS) $(srcdir)/src/common/fs_data.cpp
 
-monolib_unix_mimetype.o: $(srcdir)/src/unix/mimetype.cpp $(MONOLIB_ODEP)
-	$(CXXC) -c -o $@ $(MONOLIB_CXXFLAGS) $(srcdir)/src/unix/mimetype.cpp
-
-monolib_unix_uilocale.o: $(srcdir)/src/unix/uilocale.cpp $(MONOLIB_ODEP)
-	$(CXXC) -c -o $@ $(MONOLIB_CXXFLAGS) $(srcdir)/src/unix/uilocale.cpp
-
 monolib_fswatcher_inotify.o: $(srcdir)/src/unix/fswatcher_inotify.cpp $(MONOLIB_ODEP)
 	$(CXXC) -c -o $@ $(MONOLIB_CXXFLAGS) $(srcdir)/src/unix/fswatcher_inotify.cpp
 
@@ -20338,6 +20209,12 @@ monolib_unix_stdpaths.o: $(srcdir)/src/unix/stdpaths.cpp $(MONOLIB_ODEP)
 
 monolib_unix_secretstore.o: $(srcdir)/src/unix/secretstore.cpp $(MONOLIB_ODEP)
 	$(CXXC) -c -o $@ $(MONOLIB_CXXFLAGS) $(srcdir)/src/unix/secretstore.cpp
+
+monolib_unix_mimetype.o: $(srcdir)/src/unix/mimetype.cpp $(MONOLIB_ODEP)
+	$(CXXC) -c -o $@ $(MONOLIB_CXXFLAGS) $(srcdir)/src/unix/mimetype.cpp
+
+monolib_unix_uilocale.o: $(srcdir)/src/unix/uilocale.cpp $(MONOLIB_ODEP)
+	$(CXXC) -c -o $@ $(MONOLIB_CXXFLAGS) $(srcdir)/src/unix/uilocale.cpp
 
 monolib_basemsw.o: $(srcdir)/src/msw/basemsw.cpp $(MONOLIB_ODEP)
 	$(CXXC) -c -o $@ $(MONOLIB_CXXFLAGS) $(srcdir)/src/msw/basemsw.cpp
@@ -20399,9 +20276,6 @@ monolib_msw_secretstore.o: $(srcdir)/src/msw/secretstore.cpp $(MONOLIB_ODEP)
 monolib_msw_uilocale.o: $(srcdir)/src/msw/uilocale.cpp $(MONOLIB_ODEP)
 	$(CXXC) -c -o $@ $(MONOLIB_CXXFLAGS) $(srcdir)/src/msw/uilocale.cpp
 
-monolib_core_mimetype.o: $(srcdir)/src/osx/core/mimetype.cpp $(MONOLIB_ODEP)
-	$(CXXC) -c -o $@ $(MONOLIB_CXXFLAGS) $(srcdir)/src/osx/core/mimetype.cpp
-
 monolib_cfstring.o: $(srcdir)/src/osx/core/cfstring.cpp $(MONOLIB_ODEP)
 	$(CXXC) -c -o $@ $(MONOLIB_CXXFLAGS) $(srcdir)/src/osx/core/cfstring.cpp
 
@@ -20420,11 +20294,17 @@ monolib_core_secretstore.o: $(srcdir)/src/osx/core/secretstore.cpp $(MONOLIB_ODE
 monolib_core_stdpaths.o: $(srcdir)/src/osx/core/stdpaths.mm $(MONOLIB_ODEP)
 	$(CXXC) -c -o $@ $(MONOLIB_OBJCXXFLAGS) $(srcdir)/src/osx/core/stdpaths.mm
 
+monolib_osx_volume.o: $(srcdir)/src/osx/volume.mm $(MONOLIB_ODEP)
+	$(CXXC) -c -o $@ $(MONOLIB_OBJCXXFLAGS) $(srcdir)/src/osx/volume.mm
+
 monolib_fswatcher_fsevents.o: $(srcdir)/src/osx/fswatcher_fsevents.cpp $(MONOLIB_ODEP)
 	$(CXXC) -c -o $@ $(MONOLIB_CXXFLAGS) $(srcdir)/src/osx/fswatcher_fsevents.cpp
 
 monolib_core_uilocale.o: $(srcdir)/src/osx/core/uilocale.mm $(MONOLIB_ODEP)
 	$(CXXC) -c -o $@ $(MONOLIB_OBJCXXFLAGS) $(srcdir)/src/osx/core/uilocale.mm
+
+monolib_core_mimetype.o: $(srcdir)/src/osx/core/mimetype.cpp $(MONOLIB_ODEP)
+	$(CXXC) -c -o $@ $(MONOLIB_CXXFLAGS) $(srcdir)/src/osx/core/mimetype.cpp
 
 monolib_event.o: $(srcdir)/src/common/event.cpp $(MONOLIB_ODEP)
 	$(CXXC) -c -o $@ $(MONOLIB_CXXFLAGS) $(srcdir)/src/common/event.cpp
@@ -20446,9 +20326,6 @@ monolib_msw_volume.o: $(srcdir)/src/msw/volume.cpp $(MONOLIB_ODEP)
 
 monolib_cocoa_utils.o: $(srcdir)/src/osx/cocoa/utils.mm $(MONOLIB_ODEP)
 	$(CXXC) -c -o $@ $(MONOLIB_OBJCXXFLAGS) $(srcdir)/src/osx/cocoa/utils.mm
-
-monolib_osx_volume.o: $(srcdir)/src/osx/volume.mm $(MONOLIB_ODEP)
-	$(CXXC) -c -o $@ $(MONOLIB_OBJCXXFLAGS) $(srcdir)/src/osx/volume.mm
 
 monolib_fs_inet.o: $(srcdir)/src/common/fs_inet.cpp $(MONOLIB_ODEP)
 	$(CXXC) -c -o $@ $(MONOLIB_CXXFLAGS) $(srcdir)/src/common/fs_inet.cpp
@@ -20855,6 +20732,12 @@ monolib_iphone_button.o: $(srcdir)/src/osx/iphone/button.mm $(MONOLIB_ODEP)
 monolib_iphone_checkbox.o: $(srcdir)/src/osx/iphone/checkbox.mm $(MONOLIB_ODEP)
 	$(CXXC) -c -o $@ $(MONOLIB_OBJCXXFLAGS) $(srcdir)/src/osx/iphone/checkbox.mm
 
+monolib_iphone_choice.o: $(srcdir)/src/osx/iphone/choice.mm $(MONOLIB_ODEP)
+	$(CXXC) -c -o $@ $(MONOLIB_OBJCXXFLAGS) $(srcdir)/src/osx/iphone/choice.mm
+
+monolib_iphone_colour.o: $(srcdir)/src/osx/iphone/colour.mm $(MONOLIB_ODEP)
+	$(CXXC) -c -o $@ $(MONOLIB_OBJCXXFLAGS) $(srcdir)/src/osx/iphone/colour.mm
+
 monolib_iphone_dialog.o: $(srcdir)/src/osx/iphone/dialog.mm $(MONOLIB_ODEP)
 	$(CXXC) -c -o $@ $(MONOLIB_OBJCXXFLAGS) $(srcdir)/src/osx/iphone/dialog.mm
 
@@ -20864,11 +20747,17 @@ monolib_iphone_evtloop.o: $(srcdir)/src/osx/iphone/evtloop.mm $(MONOLIB_ODEP)
 monolib_iphone_gauge.o: $(srcdir)/src/osx/iphone/gauge.mm $(MONOLIB_ODEP)
 	$(CXXC) -c -o $@ $(MONOLIB_OBJCXXFLAGS) $(srcdir)/src/osx/iphone/gauge.mm
 
+monolib_iphone_listbox.o: $(srcdir)/src/osx/iphone/listbox.mm $(MONOLIB_ODEP)
+	$(CXXC) -c -o $@ $(MONOLIB_OBJCXXFLAGS) $(srcdir)/src/osx/iphone/listbox.mm
+
 monolib_iphone_msgdlg.o: $(srcdir)/src/osx/iphone/msgdlg.mm $(MONOLIB_ODEP)
 	$(CXXC) -c -o $@ $(MONOLIB_OBJCXXFLAGS) $(srcdir)/src/osx/iphone/msgdlg.mm
 
 monolib_iphone_nonownedwnd.o: $(srcdir)/src/osx/iphone/nonownedwnd.mm $(MONOLIB_ODEP)
 	$(CXXC) -c -o $@ $(MONOLIB_OBJCXXFLAGS) $(srcdir)/src/osx/iphone/nonownedwnd.mm
+
+monolib_iphone_notebook.o: $(srcdir)/src/osx/iphone/notebook.mm $(MONOLIB_ODEP)
+	$(CXXC) -c -o $@ $(MONOLIB_OBJCXXFLAGS) $(srcdir)/src/osx/iphone/notebook.mm
 
 monolib_iphone_scrolbar.o: $(srcdir)/src/osx/iphone/scrolbar.mm $(MONOLIB_ODEP)
 	$(CXXC) -c -o $@ $(MONOLIB_OBJCXXFLAGS) $(srcdir)/src/osx/iphone/scrolbar.mm
@@ -21773,6 +21662,9 @@ monolib_ScintillaWX.o: $(srcdir)/src/stc/ScintillaWX.cpp $(MONOLIB_ODEP)
 monolib_xh_styledtextctrl.o: $(srcdir)/src/xrc/xh_styledtextctrl.cpp $(MONOLIB_ODEP)
 	$(CXXC) -c -o $@ $(MONOLIB_CXXFLAGS) $(srcdir)/src/xrc/xh_styledtextctrl.cpp
 
+monolib_minimap.o: $(srcdir)/src/stc/minimap.cpp $(MONOLIB_ODEP)
+	$(CXXC) -c -o $@ $(MONOLIB_CXXFLAGS) $(srcdir)/src/stc/minimap.cpp
+
 monolib_PlatWXcocoa.o: $(srcdir)/src/stc/PlatWXcocoa.mm $(MONOLIB_ODEP)
 	$(CXXC) -c -o $@ $(MONOLIB_OBJCXXFLAGS) $(srcdir)/src/stc/PlatWXcocoa.mm
 
@@ -22630,6 +22522,15 @@ monolib_sound_sdl.o: $(srcdir)/src/unix/sound_sdl.cpp $(MONOLIB_ODEP)
 
 @COND_TOOLKIT_GTK_TOOLKIT_VERSION_2_USE_GUI_1@monolib_gtk_power.o: $(srcdir)/src/gtk/power.cpp $(MONOLIB_ODEP)
 @COND_TOOLKIT_GTK_TOOLKIT_VERSION_2_USE_GUI_1@	$(CXXC) -c -o $@ $(MONOLIB_CXXFLAGS) $(srcdir)/src/gtk/power.cpp
+
+@COND_TOOLKIT_GTK_TOOLKIT_VERSION_4_USE_GUI_1@monolib_wayland.o: $(srcdir)/src/gtk/wayland.cpp $(MONOLIB_ODEP)
+@COND_TOOLKIT_GTK_TOOLKIT_VERSION_4_USE_GUI_1@	$(CXXC) -c -o $@ $(MONOLIB_CXXFLAGS) $(srcdir)/src/gtk/wayland.cpp
+
+@COND_TOOLKIT_GTK_TOOLKIT_VERSION_3_USE_GUI_1@monolib_wayland.o: $(srcdir)/src/gtk/wayland.cpp $(MONOLIB_ODEP)
+@COND_TOOLKIT_GTK_TOOLKIT_VERSION_3_USE_GUI_1@	$(CXXC) -c -o $@ $(MONOLIB_CXXFLAGS) $(srcdir)/src/gtk/wayland.cpp
+
+@COND_TOOLKIT_GTK_TOOLKIT_VERSION_2_USE_GUI_1@monolib_wayland.o: $(srcdir)/src/gtk/wayland.cpp $(MONOLIB_ODEP)
+@COND_TOOLKIT_GTK_TOOLKIT_VERSION_2_USE_GUI_1@	$(CXXC) -c -o $@ $(MONOLIB_CXXFLAGS) $(srcdir)/src/gtk/wayland.cpp
 
 @COND_TOOLKIT_GTK_TOOLKIT_VERSION_2_USE_GUI_1@monolib_gtk_dcclient.o: $(srcdir)/src/gtk/dcclient.cpp $(MONOLIB_ODEP)
 @COND_TOOLKIT_GTK_TOOLKIT_VERSION_2_USE_GUI_1@	$(CXXC) -c -o $@ $(MONOLIB_CXXFLAGS) $(srcdir)/src/gtk/dcclient.cpp
@@ -25085,12 +24986,6 @@ basedll_common_uilocale.o: $(srcdir)/src/common/uilocale.cpp $(BASEDLL_ODEP)
 basedll_fs_data.o: $(srcdir)/src/common/fs_data.cpp $(BASEDLL_ODEP)
 	$(CXXC) -c -o $@ $(BASEDLL_CXXFLAGS) $(srcdir)/src/common/fs_data.cpp
 
-basedll_unix_mimetype.o: $(srcdir)/src/unix/mimetype.cpp $(BASEDLL_ODEP)
-	$(CXXC) -c -o $@ $(BASEDLL_CXXFLAGS) $(srcdir)/src/unix/mimetype.cpp
-
-basedll_unix_uilocale.o: $(srcdir)/src/unix/uilocale.cpp $(BASEDLL_ODEP)
-	$(CXXC) -c -o $@ $(BASEDLL_CXXFLAGS) $(srcdir)/src/unix/uilocale.cpp
-
 basedll_fswatcher_inotify.o: $(srcdir)/src/unix/fswatcher_inotify.cpp $(BASEDLL_ODEP)
 	$(CXXC) -c -o $@ $(BASEDLL_CXXFLAGS) $(srcdir)/src/unix/fswatcher_inotify.cpp
 
@@ -25099,6 +24994,12 @@ basedll_unix_stdpaths.o: $(srcdir)/src/unix/stdpaths.cpp $(BASEDLL_ODEP)
 
 basedll_unix_secretstore.o: $(srcdir)/src/unix/secretstore.cpp $(BASEDLL_ODEP)
 	$(CXXC) -c -o $@ $(BASEDLL_CXXFLAGS) $(srcdir)/src/unix/secretstore.cpp
+
+basedll_unix_mimetype.o: $(srcdir)/src/unix/mimetype.cpp $(BASEDLL_ODEP)
+	$(CXXC) -c -o $@ $(BASEDLL_CXXFLAGS) $(srcdir)/src/unix/mimetype.cpp
+
+basedll_unix_uilocale.o: $(srcdir)/src/unix/uilocale.cpp $(BASEDLL_ODEP)
+	$(CXXC) -c -o $@ $(BASEDLL_CXXFLAGS) $(srcdir)/src/unix/uilocale.cpp
 
 basedll_basemsw.o: $(srcdir)/src/msw/basemsw.cpp $(BASEDLL_ODEP)
 	$(CXXC) -c -o $@ $(BASEDLL_CXXFLAGS) $(srcdir)/src/msw/basemsw.cpp
@@ -25160,9 +25061,6 @@ basedll_msw_secretstore.o: $(srcdir)/src/msw/secretstore.cpp $(BASEDLL_ODEP)
 basedll_msw_uilocale.o: $(srcdir)/src/msw/uilocale.cpp $(BASEDLL_ODEP)
 	$(CXXC) -c -o $@ $(BASEDLL_CXXFLAGS) $(srcdir)/src/msw/uilocale.cpp
 
-basedll_core_mimetype.o: $(srcdir)/src/osx/core/mimetype.cpp $(BASEDLL_ODEP)
-	$(CXXC) -c -o $@ $(BASEDLL_CXXFLAGS) $(srcdir)/src/osx/core/mimetype.cpp
-
 basedll_cfstring.o: $(srcdir)/src/osx/core/cfstring.cpp $(BASEDLL_ODEP)
 	$(CXXC) -c -o $@ $(BASEDLL_CXXFLAGS) $(srcdir)/src/osx/core/cfstring.cpp
 
@@ -25181,11 +25079,17 @@ basedll_core_secretstore.o: $(srcdir)/src/osx/core/secretstore.cpp $(BASEDLL_ODE
 basedll_core_stdpaths.o: $(srcdir)/src/osx/core/stdpaths.mm $(BASEDLL_ODEP)
 	$(CXXC) -c -o $@ $(BASEDLL_OBJCXXFLAGS) $(srcdir)/src/osx/core/stdpaths.mm
 
+basedll_osx_volume.o: $(srcdir)/src/osx/volume.mm $(BASEDLL_ODEP)
+	$(CXXC) -c -o $@ $(BASEDLL_OBJCXXFLAGS) $(srcdir)/src/osx/volume.mm
+
 basedll_fswatcher_fsevents.o: $(srcdir)/src/osx/fswatcher_fsevents.cpp $(BASEDLL_ODEP)
 	$(CXXC) -c -o $@ $(BASEDLL_CXXFLAGS) $(srcdir)/src/osx/fswatcher_fsevents.cpp
 
 basedll_core_uilocale.o: $(srcdir)/src/osx/core/uilocale.mm $(BASEDLL_ODEP)
 	$(CXXC) -c -o $@ $(BASEDLL_OBJCXXFLAGS) $(srcdir)/src/osx/core/uilocale.mm
+
+basedll_core_mimetype.o: $(srcdir)/src/osx/core/mimetype.cpp $(BASEDLL_ODEP)
+	$(CXXC) -c -o $@ $(BASEDLL_CXXFLAGS) $(srcdir)/src/osx/core/mimetype.cpp
 
 basedll_event.o: $(srcdir)/src/common/event.cpp $(BASEDLL_ODEP)
 	$(CXXC) -c -o $@ $(BASEDLL_CXXFLAGS) $(srcdir)/src/common/event.cpp
@@ -25207,9 +25111,6 @@ basedll_msw_volume.o: $(srcdir)/src/msw/volume.cpp $(BASEDLL_ODEP)
 
 basedll_cocoa_utils.o: $(srcdir)/src/osx/cocoa/utils.mm $(BASEDLL_ODEP)
 	$(CXXC) -c -o $@ $(BASEDLL_OBJCXXFLAGS) $(srcdir)/src/osx/cocoa/utils.mm
-
-basedll_osx_volume.o: $(srcdir)/src/osx/volume.mm $(BASEDLL_ODEP)
-	$(CXXC) -c -o $@ $(BASEDLL_OBJCXXFLAGS) $(srcdir)/src/osx/volume.mm
 
 @COND_PLATFORM_UNIX_1@basedll_fdiodispatcher.o: $(srcdir)/src/common/fdiodispatcher.cpp $(BASEDLL_ODEP)
 @COND_PLATFORM_UNIX_1@	$(CXXC) -c -o $@ $(BASEDLL_CXXFLAGS) $(srcdir)/src/common/fdiodispatcher.cpp
@@ -25559,12 +25460,6 @@ baselib_common_uilocale.o: $(srcdir)/src/common/uilocale.cpp $(BASELIB_ODEP)
 baselib_fs_data.o: $(srcdir)/src/common/fs_data.cpp $(BASELIB_ODEP)
 	$(CXXC) -c -o $@ $(BASELIB_CXXFLAGS) $(srcdir)/src/common/fs_data.cpp
 
-baselib_unix_mimetype.o: $(srcdir)/src/unix/mimetype.cpp $(BASELIB_ODEP)
-	$(CXXC) -c -o $@ $(BASELIB_CXXFLAGS) $(srcdir)/src/unix/mimetype.cpp
-
-baselib_unix_uilocale.o: $(srcdir)/src/unix/uilocale.cpp $(BASELIB_ODEP)
-	$(CXXC) -c -o $@ $(BASELIB_CXXFLAGS) $(srcdir)/src/unix/uilocale.cpp
-
 baselib_fswatcher_inotify.o: $(srcdir)/src/unix/fswatcher_inotify.cpp $(BASELIB_ODEP)
 	$(CXXC) -c -o $@ $(BASELIB_CXXFLAGS) $(srcdir)/src/unix/fswatcher_inotify.cpp
 
@@ -25573,6 +25468,12 @@ baselib_unix_stdpaths.o: $(srcdir)/src/unix/stdpaths.cpp $(BASELIB_ODEP)
 
 baselib_unix_secretstore.o: $(srcdir)/src/unix/secretstore.cpp $(BASELIB_ODEP)
 	$(CXXC) -c -o $@ $(BASELIB_CXXFLAGS) $(srcdir)/src/unix/secretstore.cpp
+
+baselib_unix_mimetype.o: $(srcdir)/src/unix/mimetype.cpp $(BASELIB_ODEP)
+	$(CXXC) -c -o $@ $(BASELIB_CXXFLAGS) $(srcdir)/src/unix/mimetype.cpp
+
+baselib_unix_uilocale.o: $(srcdir)/src/unix/uilocale.cpp $(BASELIB_ODEP)
+	$(CXXC) -c -o $@ $(BASELIB_CXXFLAGS) $(srcdir)/src/unix/uilocale.cpp
 
 baselib_basemsw.o: $(srcdir)/src/msw/basemsw.cpp $(BASELIB_ODEP)
 	$(CXXC) -c -o $@ $(BASELIB_CXXFLAGS) $(srcdir)/src/msw/basemsw.cpp
@@ -25634,9 +25535,6 @@ baselib_msw_secretstore.o: $(srcdir)/src/msw/secretstore.cpp $(BASELIB_ODEP)
 baselib_msw_uilocale.o: $(srcdir)/src/msw/uilocale.cpp $(BASELIB_ODEP)
 	$(CXXC) -c -o $@ $(BASELIB_CXXFLAGS) $(srcdir)/src/msw/uilocale.cpp
 
-baselib_core_mimetype.o: $(srcdir)/src/osx/core/mimetype.cpp $(BASELIB_ODEP)
-	$(CXXC) -c -o $@ $(BASELIB_CXXFLAGS) $(srcdir)/src/osx/core/mimetype.cpp
-
 baselib_cfstring.o: $(srcdir)/src/osx/core/cfstring.cpp $(BASELIB_ODEP)
 	$(CXXC) -c -o $@ $(BASELIB_CXXFLAGS) $(srcdir)/src/osx/core/cfstring.cpp
 
@@ -25655,11 +25553,17 @@ baselib_core_secretstore.o: $(srcdir)/src/osx/core/secretstore.cpp $(BASELIB_ODE
 baselib_core_stdpaths.o: $(srcdir)/src/osx/core/stdpaths.mm $(BASELIB_ODEP)
 	$(CXXC) -c -o $@ $(BASELIB_OBJCXXFLAGS) $(srcdir)/src/osx/core/stdpaths.mm
 
+baselib_osx_volume.o: $(srcdir)/src/osx/volume.mm $(BASELIB_ODEP)
+	$(CXXC) -c -o $@ $(BASELIB_OBJCXXFLAGS) $(srcdir)/src/osx/volume.mm
+
 baselib_fswatcher_fsevents.o: $(srcdir)/src/osx/fswatcher_fsevents.cpp $(BASELIB_ODEP)
 	$(CXXC) -c -o $@ $(BASELIB_CXXFLAGS) $(srcdir)/src/osx/fswatcher_fsevents.cpp
 
 baselib_core_uilocale.o: $(srcdir)/src/osx/core/uilocale.mm $(BASELIB_ODEP)
 	$(CXXC) -c -o $@ $(BASELIB_OBJCXXFLAGS) $(srcdir)/src/osx/core/uilocale.mm
+
+baselib_core_mimetype.o: $(srcdir)/src/osx/core/mimetype.cpp $(BASELIB_ODEP)
+	$(CXXC) -c -o $@ $(BASELIB_CXXFLAGS) $(srcdir)/src/osx/core/mimetype.cpp
 
 baselib_event.o: $(srcdir)/src/common/event.cpp $(BASELIB_ODEP)
 	$(CXXC) -c -o $@ $(BASELIB_CXXFLAGS) $(srcdir)/src/common/event.cpp
@@ -25681,9 +25585,6 @@ baselib_msw_volume.o: $(srcdir)/src/msw/volume.cpp $(BASELIB_ODEP)
 
 baselib_cocoa_utils.o: $(srcdir)/src/osx/cocoa/utils.mm $(BASELIB_ODEP)
 	$(CXXC) -c -o $@ $(BASELIB_OBJCXXFLAGS) $(srcdir)/src/osx/cocoa/utils.mm
-
-baselib_osx_volume.o: $(srcdir)/src/osx/volume.mm $(BASELIB_ODEP)
-	$(CXXC) -c -o $@ $(BASELIB_OBJCXXFLAGS) $(srcdir)/src/osx/volume.mm
 
 @COND_PLATFORM_UNIX_1@baselib_fdiodispatcher.o: $(srcdir)/src/common/fdiodispatcher.cpp $(BASELIB_ODEP)
 @COND_PLATFORM_UNIX_1@	$(CXXC) -c -o $@ $(BASELIB_CXXFLAGS) $(srcdir)/src/common/fdiodispatcher.cpp
@@ -25922,14 +25823,11 @@ coredll_utilscmn.o: $(srcdir)/src/common/utilscmn.cpp $(COREDLL_ODEP)
 coredll_main.o: $(srcdir)/src/msw/main.cpp $(COREDLL_ODEP)
 	$(CXXC) -c -o $@ $(COREDLL_CXXFLAGS) $(srcdir)/src/msw/main.cpp
 
-coredll_msw_volume.o: $(srcdir)/src/msw/volume.cpp $(COREDLL_ODEP)
+coredll_volume.o: $(srcdir)/src/msw/volume.cpp $(COREDLL_ODEP)
 	$(CXXC) -c -o $@ $(COREDLL_CXXFLAGS) $(srcdir)/src/msw/volume.cpp
 
 coredll_cocoa_utils.o: $(srcdir)/src/osx/cocoa/utils.mm $(COREDLL_ODEP)
 	$(CXXC) -c -o $@ $(COREDLL_OBJCXXFLAGS) $(srcdir)/src/osx/cocoa/utils.mm
-
-coredll_osx_volume.o: $(srcdir)/src/osx/volume.mm $(COREDLL_ODEP)
-	$(CXXC) -c -o $@ $(COREDLL_OBJCXXFLAGS) $(srcdir)/src/osx/volume.mm
 
 coredll_eggtrayicon.o: $(srcdir)/src/gtk/eggtrayicon.c $(COREDLL_ODEP)
 	$(CCC) -c -o $@ $(COREDLL_CFLAGS) $(srcdir)/src/gtk/eggtrayicon.c
@@ -26285,6 +26183,12 @@ coredll_iphone_button.o: $(srcdir)/src/osx/iphone/button.mm $(COREDLL_ODEP)
 coredll_iphone_checkbox.o: $(srcdir)/src/osx/iphone/checkbox.mm $(COREDLL_ODEP)
 	$(CXXC) -c -o $@ $(COREDLL_OBJCXXFLAGS) $(srcdir)/src/osx/iphone/checkbox.mm
 
+coredll_iphone_choice.o: $(srcdir)/src/osx/iphone/choice.mm $(COREDLL_ODEP)
+	$(CXXC) -c -o $@ $(COREDLL_OBJCXXFLAGS) $(srcdir)/src/osx/iphone/choice.mm
+
+coredll_iphone_colour.o: $(srcdir)/src/osx/iphone/colour.mm $(COREDLL_ODEP)
+	$(CXXC) -c -o $@ $(COREDLL_OBJCXXFLAGS) $(srcdir)/src/osx/iphone/colour.mm
+
 coredll_iphone_dialog.o: $(srcdir)/src/osx/iphone/dialog.mm $(COREDLL_ODEP)
 	$(CXXC) -c -o $@ $(COREDLL_OBJCXXFLAGS) $(srcdir)/src/osx/iphone/dialog.mm
 
@@ -26294,11 +26198,17 @@ coredll_iphone_evtloop.o: $(srcdir)/src/osx/iphone/evtloop.mm $(COREDLL_ODEP)
 coredll_iphone_gauge.o: $(srcdir)/src/osx/iphone/gauge.mm $(COREDLL_ODEP)
 	$(CXXC) -c -o $@ $(COREDLL_OBJCXXFLAGS) $(srcdir)/src/osx/iphone/gauge.mm
 
+coredll_iphone_listbox.o: $(srcdir)/src/osx/iphone/listbox.mm $(COREDLL_ODEP)
+	$(CXXC) -c -o $@ $(COREDLL_OBJCXXFLAGS) $(srcdir)/src/osx/iphone/listbox.mm
+
 coredll_iphone_msgdlg.o: $(srcdir)/src/osx/iphone/msgdlg.mm $(COREDLL_ODEP)
 	$(CXXC) -c -o $@ $(COREDLL_OBJCXXFLAGS) $(srcdir)/src/osx/iphone/msgdlg.mm
 
 coredll_iphone_nonownedwnd.o: $(srcdir)/src/osx/iphone/nonownedwnd.mm $(COREDLL_ODEP)
 	$(CXXC) -c -o $@ $(COREDLL_OBJCXXFLAGS) $(srcdir)/src/osx/iphone/nonownedwnd.mm
+
+coredll_iphone_notebook.o: $(srcdir)/src/osx/iphone/notebook.mm $(COREDLL_ODEP)
+	$(CXXC) -c -o $@ $(COREDLL_OBJCXXFLAGS) $(srcdir)/src/osx/iphone/notebook.mm
 
 coredll_iphone_scrolbar.o: $(srcdir)/src/osx/iphone/scrolbar.mm $(COREDLL_ODEP)
 	$(CXXC) -c -o $@ $(COREDLL_OBJCXXFLAGS) $(srcdir)/src/osx/iphone/scrolbar.mm
@@ -27463,6 +27373,15 @@ coredll_sound_sdl.o: $(srcdir)/src/unix/sound_sdl.cpp $(COREDLL_ODEP)
 
 @COND_TOOLKIT_GTK_TOOLKIT_VERSION_2_USE_GUI_1@coredll_gtk_power.o: $(srcdir)/src/gtk/power.cpp $(COREDLL_ODEP)
 @COND_TOOLKIT_GTK_TOOLKIT_VERSION_2_USE_GUI_1@	$(CXXC) -c -o $@ $(COREDLL_CXXFLAGS) $(srcdir)/src/gtk/power.cpp
+
+@COND_TOOLKIT_GTK_TOOLKIT_VERSION_4_USE_GUI_1@coredll_wayland.o: $(srcdir)/src/gtk/wayland.cpp $(COREDLL_ODEP)
+@COND_TOOLKIT_GTK_TOOLKIT_VERSION_4_USE_GUI_1@	$(CXXC) -c -o $@ $(COREDLL_CXXFLAGS) $(srcdir)/src/gtk/wayland.cpp
+
+@COND_TOOLKIT_GTK_TOOLKIT_VERSION_3_USE_GUI_1@coredll_wayland.o: $(srcdir)/src/gtk/wayland.cpp $(COREDLL_ODEP)
+@COND_TOOLKIT_GTK_TOOLKIT_VERSION_3_USE_GUI_1@	$(CXXC) -c -o $@ $(COREDLL_CXXFLAGS) $(srcdir)/src/gtk/wayland.cpp
+
+@COND_TOOLKIT_GTK_TOOLKIT_VERSION_2_USE_GUI_1@coredll_wayland.o: $(srcdir)/src/gtk/wayland.cpp $(COREDLL_ODEP)
+@COND_TOOLKIT_GTK_TOOLKIT_VERSION_2_USE_GUI_1@	$(CXXC) -c -o $@ $(COREDLL_CXXFLAGS) $(srcdir)/src/gtk/wayland.cpp
 
 @COND_TOOLKIT_GTK_TOOLKIT_VERSION_2_USE_GUI_1@coredll_gtk_dcclient.o: $(srcdir)/src/gtk/dcclient.cpp $(COREDLL_ODEP)
 @COND_TOOLKIT_GTK_TOOLKIT_VERSION_2_USE_GUI_1@	$(CXXC) -c -o $@ $(COREDLL_CXXFLAGS) $(srcdir)/src/gtk/dcclient.cpp
@@ -29654,14 +29573,11 @@ corelib_utilscmn.o: $(srcdir)/src/common/utilscmn.cpp $(CORELIB_ODEP)
 corelib_main.o: $(srcdir)/src/msw/main.cpp $(CORELIB_ODEP)
 	$(CXXC) -c -o $@ $(CORELIB_CXXFLAGS) $(srcdir)/src/msw/main.cpp
 
-corelib_msw_volume.o: $(srcdir)/src/msw/volume.cpp $(CORELIB_ODEP)
+corelib_volume.o: $(srcdir)/src/msw/volume.cpp $(CORELIB_ODEP)
 	$(CXXC) -c -o $@ $(CORELIB_CXXFLAGS) $(srcdir)/src/msw/volume.cpp
 
 corelib_cocoa_utils.o: $(srcdir)/src/osx/cocoa/utils.mm $(CORELIB_ODEP)
 	$(CXXC) -c -o $@ $(CORELIB_OBJCXXFLAGS) $(srcdir)/src/osx/cocoa/utils.mm
-
-corelib_osx_volume.o: $(srcdir)/src/osx/volume.mm $(CORELIB_ODEP)
-	$(CXXC) -c -o $@ $(CORELIB_OBJCXXFLAGS) $(srcdir)/src/osx/volume.mm
 
 corelib_eggtrayicon.o: $(srcdir)/src/gtk/eggtrayicon.c $(CORELIB_ODEP)
 	$(CCC) -c -o $@ $(CORELIB_CFLAGS) $(srcdir)/src/gtk/eggtrayicon.c
@@ -30017,6 +29933,12 @@ corelib_iphone_button.o: $(srcdir)/src/osx/iphone/button.mm $(CORELIB_ODEP)
 corelib_iphone_checkbox.o: $(srcdir)/src/osx/iphone/checkbox.mm $(CORELIB_ODEP)
 	$(CXXC) -c -o $@ $(CORELIB_OBJCXXFLAGS) $(srcdir)/src/osx/iphone/checkbox.mm
 
+corelib_iphone_choice.o: $(srcdir)/src/osx/iphone/choice.mm $(CORELIB_ODEP)
+	$(CXXC) -c -o $@ $(CORELIB_OBJCXXFLAGS) $(srcdir)/src/osx/iphone/choice.mm
+
+corelib_iphone_colour.o: $(srcdir)/src/osx/iphone/colour.mm $(CORELIB_ODEP)
+	$(CXXC) -c -o $@ $(CORELIB_OBJCXXFLAGS) $(srcdir)/src/osx/iphone/colour.mm
+
 corelib_iphone_dialog.o: $(srcdir)/src/osx/iphone/dialog.mm $(CORELIB_ODEP)
 	$(CXXC) -c -o $@ $(CORELIB_OBJCXXFLAGS) $(srcdir)/src/osx/iphone/dialog.mm
 
@@ -30026,11 +29948,17 @@ corelib_iphone_evtloop.o: $(srcdir)/src/osx/iphone/evtloop.mm $(CORELIB_ODEP)
 corelib_iphone_gauge.o: $(srcdir)/src/osx/iphone/gauge.mm $(CORELIB_ODEP)
 	$(CXXC) -c -o $@ $(CORELIB_OBJCXXFLAGS) $(srcdir)/src/osx/iphone/gauge.mm
 
+corelib_iphone_listbox.o: $(srcdir)/src/osx/iphone/listbox.mm $(CORELIB_ODEP)
+	$(CXXC) -c -o $@ $(CORELIB_OBJCXXFLAGS) $(srcdir)/src/osx/iphone/listbox.mm
+
 corelib_iphone_msgdlg.o: $(srcdir)/src/osx/iphone/msgdlg.mm $(CORELIB_ODEP)
 	$(CXXC) -c -o $@ $(CORELIB_OBJCXXFLAGS) $(srcdir)/src/osx/iphone/msgdlg.mm
 
 corelib_iphone_nonownedwnd.o: $(srcdir)/src/osx/iphone/nonownedwnd.mm $(CORELIB_ODEP)
 	$(CXXC) -c -o $@ $(CORELIB_OBJCXXFLAGS) $(srcdir)/src/osx/iphone/nonownedwnd.mm
+
+corelib_iphone_notebook.o: $(srcdir)/src/osx/iphone/notebook.mm $(CORELIB_ODEP)
+	$(CXXC) -c -o $@ $(CORELIB_OBJCXXFLAGS) $(srcdir)/src/osx/iphone/notebook.mm
 
 corelib_iphone_scrolbar.o: $(srcdir)/src/osx/iphone/scrolbar.mm $(CORELIB_ODEP)
 	$(CXXC) -c -o $@ $(CORELIB_OBJCXXFLAGS) $(srcdir)/src/osx/iphone/scrolbar.mm
@@ -31195,6 +31123,15 @@ corelib_sound_sdl.o: $(srcdir)/src/unix/sound_sdl.cpp $(CORELIB_ODEP)
 
 @COND_TOOLKIT_GTK_TOOLKIT_VERSION_2_USE_GUI_1@corelib_gtk_power.o: $(srcdir)/src/gtk/power.cpp $(CORELIB_ODEP)
 @COND_TOOLKIT_GTK_TOOLKIT_VERSION_2_USE_GUI_1@	$(CXXC) -c -o $@ $(CORELIB_CXXFLAGS) $(srcdir)/src/gtk/power.cpp
+
+@COND_TOOLKIT_GTK_TOOLKIT_VERSION_4_USE_GUI_1@corelib_wayland.o: $(srcdir)/src/gtk/wayland.cpp $(CORELIB_ODEP)
+@COND_TOOLKIT_GTK_TOOLKIT_VERSION_4_USE_GUI_1@	$(CXXC) -c -o $@ $(CORELIB_CXXFLAGS) $(srcdir)/src/gtk/wayland.cpp
+
+@COND_TOOLKIT_GTK_TOOLKIT_VERSION_3_USE_GUI_1@corelib_wayland.o: $(srcdir)/src/gtk/wayland.cpp $(CORELIB_ODEP)
+@COND_TOOLKIT_GTK_TOOLKIT_VERSION_3_USE_GUI_1@	$(CXXC) -c -o $@ $(CORELIB_CXXFLAGS) $(srcdir)/src/gtk/wayland.cpp
+
+@COND_TOOLKIT_GTK_TOOLKIT_VERSION_2_USE_GUI_1@corelib_wayland.o: $(srcdir)/src/gtk/wayland.cpp $(CORELIB_ODEP)
+@COND_TOOLKIT_GTK_TOOLKIT_VERSION_2_USE_GUI_1@	$(CXXC) -c -o $@ $(CORELIB_CXXFLAGS) $(srcdir)/src/gtk/wayland.cpp
 
 @COND_TOOLKIT_GTK_TOOLKIT_VERSION_2_USE_GUI_1@corelib_gtk_dcclient.o: $(srcdir)/src/gtk/dcclient.cpp $(CORELIB_ODEP)
 @COND_TOOLKIT_GTK_TOOLKIT_VERSION_2_USE_GUI_1@	$(CXXC) -c -o $@ $(CORELIB_CXXFLAGS) $(srcdir)/src/gtk/dcclient.cpp
@@ -34421,6 +34358,9 @@ stcdll_ScintillaWX.o: $(srcdir)/src/stc/ScintillaWX.cpp $(STCDLL_ODEP)
 stcdll_xh_styledtextctrl.o: $(srcdir)/src/xrc/xh_styledtextctrl.cpp $(STCDLL_ODEP)
 	$(CXXC) -c -o $@ $(STCDLL_CXXFLAGS) $(srcdir)/src/xrc/xh_styledtextctrl.cpp
 
+stcdll_minimap.o: $(srcdir)/src/stc/minimap.cpp $(STCDLL_ODEP)
+	$(CXXC) -c -o $@ $(STCDLL_CXXFLAGS) $(srcdir)/src/stc/minimap.cpp
+
 stcdll_PlatWXcocoa.o: $(srcdir)/src/stc/PlatWXcocoa.mm $(STCDLL_ODEP)
 	$(CXXC) -c -o $@ $(STCDLL_OBJCXXFLAGS) $(srcdir)/src/stc/PlatWXcocoa.mm
 
@@ -34435,6 +34375,9 @@ stclib_ScintillaWX.o: $(srcdir)/src/stc/ScintillaWX.cpp $(STCLIB_ODEP)
 
 stclib_xh_styledtextctrl.o: $(srcdir)/src/xrc/xh_styledtextctrl.cpp $(STCLIB_ODEP)
 	$(CXXC) -c -o $@ $(STCLIB_CXXFLAGS) $(srcdir)/src/xrc/xh_styledtextctrl.cpp
+
+stclib_minimap.o: $(srcdir)/src/stc/minimap.cpp $(STCLIB_ODEP)
+	$(CXXC) -c -o $@ $(STCLIB_CXXFLAGS) $(srcdir)/src/stc/minimap.cpp
 
 stclib_PlatWXcocoa.o: $(srcdir)/src/stc/PlatWXcocoa.mm $(STCLIB_ODEP)
 	$(CXXC) -c -o $@ $(STCLIB_OBJCXXFLAGS) $(srcdir)/src/stc/PlatWXcocoa.mm
@@ -34478,6 +34421,12 @@ gldll_x11_glcanvas.o: $(srcdir)/src/x11/glcanvas.cpp $(GLDLL_ODEP)
 @COND_TOOLKIT_X11@gldll_glx11.o: $(srcdir)/src/unix/glx11.cpp $(GLDLL_ODEP)
 @COND_TOOLKIT_X11@	$(CXXC) -c -o $@ $(GLDLL_CXXFLAGS) $(srcdir)/src/unix/glx11.cpp
 
+@COND_TOOLKIT_GTK@gldll_unix_glcanvas.o: $(srcdir)/src/unix/glcanvas.cpp $(GLDLL_ODEP)
+@COND_TOOLKIT_GTK@	$(CXXC) -c -o $@ $(GLDLL_CXXFLAGS) $(srcdir)/src/unix/glcanvas.cpp
+
+@COND_TOOLKIT_X11@gldll_unix_glcanvas.o: $(srcdir)/src/unix/glcanvas.cpp $(GLDLL_ODEP)
+@COND_TOOLKIT_X11@	$(CXXC) -c -o $@ $(GLDLL_CXXFLAGS) $(srcdir)/src/unix/glcanvas.cpp
+
 gllib_glcmn.o: $(srcdir)/src/common/glcmn.cpp $(GLLIB_ODEP)
 	$(CXXC) -c -o $@ $(GLLIB_CXXFLAGS) $(srcdir)/src/common/glcmn.cpp
 
@@ -34513,6 +34462,12 @@ gllib_x11_glcanvas.o: $(srcdir)/src/x11/glcanvas.cpp $(GLLIB_ODEP)
 
 @COND_TOOLKIT_X11@gllib_glx11.o: $(srcdir)/src/unix/glx11.cpp $(GLLIB_ODEP)
 @COND_TOOLKIT_X11@	$(CXXC) -c -o $@ $(GLLIB_CXXFLAGS) $(srcdir)/src/unix/glx11.cpp
+
+@COND_TOOLKIT_GTK@gllib_unix_glcanvas.o: $(srcdir)/src/unix/glcanvas.cpp $(GLLIB_ODEP)
+@COND_TOOLKIT_GTK@	$(CXXC) -c -o $@ $(GLLIB_CXXFLAGS) $(srcdir)/src/unix/glcanvas.cpp
+
+@COND_TOOLKIT_X11@gllib_unix_glcanvas.o: $(srcdir)/src/unix/glcanvas.cpp $(GLLIB_ODEP)
+@COND_TOOLKIT_X11@	$(CXXC) -c -o $@ $(GLLIB_CXXFLAGS) $(srcdir)/src/unix/glcanvas.cpp
 
 sound_sdl_sound_sdl.o: $(srcdir)/src/unix/sound_sdl.cpp
 	$(CXXC) -c -o $@ $(SOUND_SDL_CXXFLAGS) $(srcdir)/src/unix/sound_sdl.cpp
