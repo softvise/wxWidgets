@@ -1988,6 +1988,10 @@ public:
     /**
         Returns the position and size of the window as a wxRect object.
 
+        As with GetPosition(), the rectangle position is relative to the parent
+        window for child windows or relative to the display origin for top
+        level windows.
+
         @see GetScreenRect()
     */
     wxRect GetRect() const;
@@ -3016,6 +3020,10 @@ public:
         window manager may raise the window, not do it at all or indicate that
         a window requested to be raised in some other way, e.g. by flashing its
         icon if it is minimized.
+
+        If the window is currently hidden, this function does *not* show it
+        automatically, it will only appear on top of the other windows when it
+        is shown.
 
         @remarks
         This function only works for wxTopLevelWindow-derived classes.

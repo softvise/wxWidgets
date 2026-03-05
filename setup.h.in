@@ -569,6 +569,8 @@
 
 #define wxUSE_NANOSVG_EXTERNAL 0
 
+#define wxUSE_LUNASVG       0
+
 #define wxUSE_TGA           0
 
 #define wxUSE_GIF           0
@@ -1138,6 +1140,9 @@
 
 /* Define if you have EGL support */
 #undef wxHAS_EGL
+
+/* Define if you have GLX support */
+#undef wxHAS_GLX
 
 /* Define if you have inotify_xxx() functions. */
 #undef wxHAS_INOTIFY

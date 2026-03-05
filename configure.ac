@@ -13,7 +13,7 @@ dnl ---------------------------------------------------------------------------
 dnl initialization
 dnl ---------------------------------------------------------------------------
 
-AC_INIT([wxWidgets], [3.3.2], [wx-dev@googlegroups.com])
+AC_INIT([wxWidgets], [3.3.3], [wx-dev@googlegroups.com])
 
 dnl the file passed to AC_CONFIG_SRCDIR should be specific to our package
 AC_CONFIG_SRCDIR([wx-config.in])
@@ -39,7 +39,7 @@ dnl wx_release_number += 1
 
 wx_major_version_number=3
 wx_minor_version_number=3
-wx_release_number=2
+wx_release_number=3
 wx_subrelease_number=0
 
 WX_RELEASE=$wx_major_version_number.$wx_minor_version_number
@@ -320,6 +320,7 @@ DEFAULT_wxUSE_LIBMSPACK=no
 DEFAULT_wxUSE_LIBSDL=no
 DEFAULT_wxUSE_LIBLZMA=no
 DEFAULT_wxUSE_CAIRO=no
+DEFAULT_wxUSE_LUNASVG=no
 
 dnl features disabled by default
 DEFAULT_wxUSE_ACCESSIBILITY=no
@@ -541,6 +542,7 @@ WX_ARG_WITH(libnotify,     [  --with-libnotify        use libnotify for notifica
 WX_ARG_WITH(opengl,        [  --with-opengl           use OpenGL (or Mesa)], wxUSE_OPENGL)
 WX_ARG_WITH(xtest,         [  --with-xtest            use XTest extension], wxUSE_XTEST)
 WX_ARG_WITH(nanosvg,       [  --with-nanosvg          use NanoSVG for rasterizing SVG], wxUSE_NANOSVG)
+WX_ARG_WITH(lunasvg,       [  --with-lunasvg          use LunaSVG for rasterizing SVG], wxUSE_LUNASVG)
 
 if test "$wxUSE_GTK" = 1 -o "$wxUSE_X11" = 1; then
     wx_needs_cairo_for_gc=1
@@ -1126,10 +1128,18 @@ case "${wxWITH_CXX-$wxDEFAULT_CXXSTD}" in
             AC_MSG_ERROR([Using wxWebView Chromium backend requires C++14 or later.])
         fi
 
+        if test "$wxUSE_LUNASVG" = "yes"; then
+            AC_MSG_ERROR([Using LunaSVG requires C++17 or later])
+        fi
+
         AX_CXX_COMPILE_STDCXX(11)
         ;;
 
     14)
+        if test "$wxUSE_LUNASVG" = "yes"; then
+            AC_MSG_ERROR([Using LunaSVG requires C++17 or later])
+        fi
+
         AX_CXX_COMPILE_STDCXX(14)
         ;;
 
@@ -2656,8 +2666,11 @@ if test "$wxUSE_LIBTIFF" != "no" ; then
             dnl the top-level script to all the other ones called recursively), so
             dnl we need to hack around this
             tiff_jpeg_option=--disable-jpeg
-        else
-            tiff_jpeg_option=--enable-jpeg
+        elif test "$wxUSE_LIBJPEG" = "builtin"; then
+            dnl JPEG support is enabled by default, but make sure that we use
+            dnl our own libjpeg, even if another version of the library is
+            dnl installed system-wide
+            tiff_jpeg_option=--with-jpeg-from-wx
         fi
 
         dnl if you ever want to enable webp, check if it clashes with the wxUSE_LIBWBP setting
@@ -2756,6 +2769,16 @@ dnl ------------------------------------------------------------------------
 
 if test "$wxUSE_NANOSVG" = "yes"; then
     AC_DEFINE(wxUSE_NANOSVG)
+fi
+
+dnl ------------------------------------------------------------------------
+dnl Check for LunaSVG libraries
+dnl ------------------------------------------------------------------------
+
+if test "$wxUSE_LUNASVG" = "yes"; then
+    AC_DEFINE(wxUSE_LUNASVG)
+else
+    USE_LUNASVG=0
 fi
 
 dnl ------------------------------------------------------------------------
@@ -3273,25 +3296,38 @@ installed, where VER is 2, 3 or 4.
             dnl the name of the directory where the files for this toolkit live
             TOOLKIT_INCLUDE="${TOOLKIT_INCLUDE} -I${QT5_CUSTOM_DIR}/include"
             GUI_TK_LIBRARY="${GUI_TK_LIBRARY} -L${QT5_CUSTOM_DIR}/lib \
-                            -lQt5Core -lQt5Widgets -lQt5Gui -lQt5OpenGL -lQt5Test \
+                            -lQt5Core -lQt5Widgets -lQt5Gui -lQt5OpenGL -lQt5Test -lQt5PrintSupport \
                             -Wl,-rpath,${QT5_CUSTOM_DIR}/lib"
 
         elif test -z "$PKG_CONFIG" ; then
             AC_MSG_ERROR([specify QT5_CUSTOM_DIR or make sure pkg-config is available to search for Qt5 libraries])
 
         else
-            PKG_CHECK_MODULES(QT5,
-                          [Qt5Core Qt5Widgets Qt5Gui Qt5OpenGL Qt5Test],
+            PKG_CHECK_MODULES(QT6,
+                          [Qt6Core Qt6Widgets Qt6Gui Qt6OpenGL Qt6OpenGLWidgets Qt6Test Qt6PrintSupport],
                 [
-                TOOLKIT_INCLUDE="${TOOLKIT_INCLUDE} ${QT5_CFLAGS}"
-                GUI_TK_LIBRARY="${GUI_TK_LIBRARY} ${QT5_LIBS}"
-                if `pkg-config --variable qt_config Qt5Core | grep "reduce_relocations" >/dev/null`; then
+                TOOLKIT_INCLUDE="${TOOLKIT_INCLUDE} ${QT6_CFLAGS}"
+                GUI_TK_LIBRARY="${GUI_TK_LIBRARY} ${QT6_LIBS}"
+                if `pkg-config --variable qt_config Qt6Core | grep "reduce_relocations" >/dev/null`; then
                     dnl build with position independent code if Qt needs it
                     wxUSE_PIC=yes
                 fi
                 ],
                 [
-                    AC_MSG_ERROR([Qt5 libraries are not available])
+                    PKG_CHECK_MODULES(QT5,
+                                  [Qt5Core Qt5Widgets Qt5Gui Qt5OpenGL Qt5Test Qt5PrintSupport],
+                        [
+                        TOOLKIT_INCLUDE="${TOOLKIT_INCLUDE} ${QT5_CFLAGS}"
+                        GUI_TK_LIBRARY="${GUI_TK_LIBRARY} ${QT5_LIBS}"
+                        if `pkg-config --variable qt_config Qt5Core | grep "reduce_relocations" >/dev/null`; then
+                            dnl build with position independent code if Qt needs it
+                            wxUSE_PIC=yes
+                        fi
+                        ],
+                        [
+                            AC_MSG_ERROR([Neither Qt6 nor Qt5 libraries are available])
+                        ]
+                    )
                 ]
             )
         fi
@@ -3453,34 +3489,35 @@ if test "$wxUSE_OPENGL" = "yes" -o "$wxUSE_OPENGL" = "auto"; then
                       fi
                     fi
 
-                        found_gl=1
-                        OPENGL_LIBS="-lGL"
+                    found_gl=1
+                    OPENGL_LIBS="-lGL"
+                    AC_DEFINE(wxHAS_GLX)
 
-                        if test "$WXGTK3" = 1; then
-                            if test "$wxUSE_GLCANVAS_EGL" != "no"; then
-                                PKG_CHECK_MODULES(EGL, [egl >= 1.4],
-                                    [
-                                        OPENGL_LIBS="$OPENGL_LIBS $EGL_LIBS"
-                                        AC_DEFINE(wxHAS_EGL)
-                                        PKG_CHECK_MODULES(WAYLAND_EGL, [wayland-egl],
-                                            [
-                                                if test $wx_cv_gdk_wayland = "yes"; then
-                                                    OPENGL_LIBS="$OPENGL_LIBS $WAYLAND_EGL_LIBS"
-                                                    have_wayland=1
-                                                fi
-                                            ],
-                                            [:]
-                                        )
-                                    ],
-                                    [
-                                        AC_MSG_NOTICE([EGL 1.4+ not available. Will use GLX.])
-                                    ]
-                                )
-                                if test "$have_wayland" != 1; then
-                                    AC_MSG_NOTICE([wxGLCanvas will not have Wayland support])
-                                fi
+                    if test "$WXGTK3" = 1; then
+                        if test "$wxUSE_GLCANVAS_EGL" != "no"; then
+                            PKG_CHECK_MODULES(EGL, [egl >= 1.4],
+                                [
+                                    OPENGL_LIBS="$OPENGL_LIBS $EGL_LIBS"
+                                    AC_DEFINE(wxHAS_EGL)
+                                    PKG_CHECK_MODULES(WAYLAND_EGL, [wayland-egl],
+                                        [
+                                            if test $wx_cv_gdk_wayland = "yes"; then
+                                                OPENGL_LIBS="$OPENGL_LIBS $WAYLAND_EGL_LIBS"
+                                                have_wayland=1
+                                            fi
+                                        ],
+                                        [:]
+                                    )
+                                ],
+                                [
+                                    AC_MSG_NOTICE([EGL 1.4+ not available. Will use GLX.])
+                                ]
+                            )
+                            if test "$have_wayland" != 1; then
+                                AC_MSG_NOTICE([wxGLCanvas will not have Wayland support])
                             fi
                         fi
+                    fi
                 fi
 
                 if test "$found_gl" != 1; then
@@ -3681,25 +3718,35 @@ if test "$wxUSE_SHARED" = "yes"; then
         install_name_tool=`which ${HOST_PREFIX}install_name_tool`
         if test "$install_name_tool" -a -x "$install_name_tool"; then
             DYLIB_RPATH_POSTLINK="${HOST_PREFIX}install_name_tool -id \$@ \$@"
+            dnl Note that the script below doesn't use realpath because it's
+            dnl only available since macOS 13 and doesn't even use readlink -f
+            dnl because this is only available since macOS 12, while we still
+            dnl need to support 10.10.
             cat <<EOF >change-install-names
 #!/bin/sh
-libnames=\$(cd lib ; ls -1 libwx*${WX_RELEASE}.dylib)
+set -e
+[[ -z "\${WXDEBUG_X}" ]] || set -x
+destdir=\$1
+libdir=\$2
+bindir=\$3
+build_libdir=\$4
+libnames=\$(cd \${build_libdir}; printf '%s\n' libwx*-${WX_RELEASE}.dylib)
 changes=''
-for dep in \${libnames} ; do
-    target=\$(readlink -f \${4}/\${dep})
-    changes="\${changes} -change \${target} \${3}/\${dep}"
+for libname in \${libnames} ; do
+    target=\$(readlink \${build_libdir}/\$(readlink \${build_libdir}/\${libname}))
+    changes="\${changes} -change \${build_libdir}/\${target} \${libdir}/\${target}"
 done
-for i in \${libnames} ; do
-    lib=\$(readlink -f \${1}/\${i})
-    ${HOST_PREFIX}install_name_tool \${changes} -id \${3}/\${i} \${lib}
+for libname in \${libnames} ; do
+    target=\$(readlink \${build_libdir}/\$(readlink \${build_libdir}/\${libname}))
+    ${HOST_PREFIX}install_name_tool \${changes} -id \${libdir}/\${libname} \${destdir}\${libdir}/\${target}
 done
 
-if test -f "\${2}/wxrc-${WX_RELEASE}" ; then
-    ${HOST_PREFIX}install_name_tool \${changes} \${2}/wxrc-${WX_RELEASE}
+if test -f \${destdir}\${bindir}/wxrc-${WX_RELEASE} ; then
+    ${HOST_PREFIX}install_name_tool \${changes} \${destdir}\${bindir}/wxrc-${WX_RELEASE}
 fi
 EOF
             chmod +x change-install-names
-            DYLIB_RPATH_INSTALL="\$(wx_top_builddir)/change-install-names \${DESTDIR}\${libdir} \${DESTDIR}\${bindir} \${libdir} \$(wx_top_builddir)/lib"
+            DYLIB_RPATH_INSTALL="\$(wx_top_builddir)/change-install-names \"\${DESTDIR}\" \${libdir} \${bindir} \$(wx_top_builddir)/lib"
         fi
 
         dnl the HEADER_PAD_OPTION is required by some wx samples to avoid the error:
@@ -6967,6 +7014,21 @@ if test "$wxUSE_STC" = "yes"; then
      COND_PYTHON="#"
    fi
    AC_SUBST(COND_PYTHON)
+fi
+
+USE_LUNASVG=0
+if test "$wxUSE_LUNASVG" = "yes"; then
+   if ! test -f "$srcdir/3rdparty/lunasvg/include/lunasvg.h" ; then
+       AC_MSG_ERROR([
+   The required lunasvg header was not found. You probably need to run
+
+       git submodule update --init 3rdparty/lunasvg
+
+   to fix this.])
+   fi
+
+   AC_DEFINE(wxUSE_LUNASVG)
+   USE_LUNASVG=1
 fi
 
 if test "$wxUSE_MENUS" = "yes"; then

@@ -138,9 +138,13 @@ set(BASE_OSX_SRC
 )
 
 set(BASE_OSX_HDR
-    wx/osx/fswatcher_fsevents.h
+    wx/osx/chkconf.h
+    wx/osx/cocoa/chkconf.h
+    wx/osx/iphone/chkconf.h
     ${BASE_COREFOUNDATION_HDR}
     ${BASE_UNIX_AND_DARWIN_HDR}
+    wx/osx/fswatcher_fsevents.h
+    wx/osx/evtloopsrc.h
 )
 
 set(BASE_AND_GUI_OSX_COCOA_SRC
@@ -378,6 +382,7 @@ set(QT_SRC
     src/qt/overlay.cpp
     src/qt/renderer.cpp
     src/qt/graphics.cpp
+    src/qt/artqt.cpp
 )
 
 set(MEDIA_QT_SRC
@@ -2044,7 +2049,6 @@ set(OSX_SHARED_HDR
     wx/osx/button.h
     wx/osx/checkbox.h
     wx/osx/checklst.h
-    wx/osx/chkconf.h
     wx/osx/choice.h
     wx/osx/clipbrd.h
     wx/osx/colordlg.h
@@ -2064,7 +2068,6 @@ set(OSX_SHARED_HDR
     wx/osx/dirdlg.h
     wx/osx/dnd.h
     wx/osx/evtloop.h
-    wx/osx/evtloopsrc.h
     wx/osx/filedlg.h
     wx/osx/font.h
     wx/osx/fontdlg.h
@@ -2187,7 +2190,6 @@ set(OSX_COCOA_SRC
 )
 
 set(OSX_COCOA_HDR
-    wx/osx/cocoa/chkconf.h
     wx/osx/cocoa/evtloop.h
     wx/osx/cocoa/private.h
     wx/generic/region.h
@@ -2236,7 +2238,6 @@ set(OSX_IPHONE_SRC
 )
 
 set(OSX_IPHONE_HDR
-    wx/osx/iphone/chkconf.h
     wx/osx/iphone/private.h
     wx/generic/region.h
     wx/osx/sound.h

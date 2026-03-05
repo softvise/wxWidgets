@@ -368,7 +368,21 @@ wxWindowQt::~wxWindowQt()
 
     DestroyChildren(); // This also destroys scrollbars
 
-    delete m_qtWindow;
+    auto* const p = m_qtWindow->parentWidget();
+
+    if ( p && p->isVisible() && m_qtWindow->testAttribute(Qt::WA_PendingResizeEvent) )
+    {
+        // To prevent a potential use-after-delete error, m_qtWindow should not be deleted
+        // until after the parent window's QShowEvent handler has fully completed. IOW,
+        // this occurs when a child window is destroyed while the parent is in the middle
+        // of showing its children in the QShowEvent handler.
+
+        m_qtWindow->deleteLater();
+    }
+    else
+    {
+        delete m_qtWindow;
+    }
 }
 
 
@@ -561,6 +575,9 @@ bool wxWindowQt::Reparent( wxWindowBase *parent )
 
 void wxWindowQt::Raise()
 {
+    if ( !IsShown() )
+        return;
+
     GetHandle()->raise();
 }
 
@@ -637,6 +654,18 @@ void wxWindowQt::Refresh( bool WXUNUSED( eraseBackground ), const wxRect *rect )
             }
         }
     }
+}
+
+void wxWindowQt::ClearBackground()
+{
+    if ( !GetHandle()->autoFillBackground() )
+    {
+        // Rely on Qt to do the right thing with clearing the background.
+        GetHandle()->setAutoFillBackground(true);
+        GetHandle()->setAutoFillBackground(false);
+    }
+    // else: No need to do anything because Qt will fill the background
+    //       of the widget before invoking the paint event anyhow.
 }
 
 bool wxWindowQt::SetCursor( const wxCursor &cursor )
@@ -1252,13 +1281,11 @@ void wxWindowQt::DoSetClientSize(int width, int height)
     QWidget *qtWidget = QtGetClientWidget();
     wxCHECK_RET( qtWidget, "window must be created" );
 
-    if ( qtWidget != GetHandle() )
-    {
-        int x, y;
-        DoGetPosition(&x, &y);
-        // Ensure that this window is correctly positioned in RTL layout.
-        DoMoveWindow(x, y, width, height);
-    }
+    int x, y;
+    DoGetPosition(&x, &y);
+    DoMoveWindow(x, y, width, height);
+
+    // Ensure that this window is correctly positioned in RTL layout.
 
     QRect geometry = qtWidget->geometry();
     const int dx = width - geometry.width();
