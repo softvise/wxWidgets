@@ -13,7 +13,7 @@ dnl ---------------------------------------------------------------------------
 dnl initialization
 dnl ---------------------------------------------------------------------------
 
-AC_INIT([wxWidgets], [3.3.3], [wx-dev@googlegroups.com])
+AC_INIT([wxWidgets], [3.3.4], [wx-dev@googlegroups.com])
 
 dnl the file passed to AC_CONFIG_SRCDIR should be specific to our package
 AC_CONFIG_SRCDIR([wx-config.in])
@@ -39,7 +39,7 @@ dnl wx_release_number += 1
 
 wx_major_version_number=3
 wx_minor_version_number=3
-wx_release_number=3
+wx_release_number=4
 wx_subrelease_number=0
 
 WX_RELEASE=$wx_major_version_number.$wx_minor_version_number
@@ -153,6 +153,11 @@ case "${host}" in
     dnl many standard declarations in HP-UX headers are only included if either
     dnl _HPUX_SOURCE is defined, see stdsyms(5)
     CPPFLAGS="-D_HPUX_SOURCE $CPPFLAGS"
+  ;;
+  *-*-android* )
+    USE_LINUX=1
+    AC_DEFINE(__LINUX__)
+    LIBS="-llog $LIBS"
   ;;
   *-*-linux* )
     USE_LINUX=1
@@ -1046,7 +1051,6 @@ WX_ARG_FEATURE(dccache,     [  --enable-dccache        cache temporary wxDC obje
 WX_ARG_FEATURE(ps-in-msw,   [  --enable-ps-in-msw      use PS printing in wxMSW (Win32 only)], wxUSE_POSTSCRIPT_ARCHITECTURE_IN_MSW)
 WX_ARG_FEATURE(ownerdrawn,  [  --enable-ownerdrawn     use owner drawn controls (Win32 and OS/2 only)], wxUSE_OWNER_DRAWN)
 WX_ARG_FEATURE(taskbarbutton,[  --enable-taskbarbutton  enable wxTaskBarButton (Win32 only)], wxUSE_TASKBARBUTTON)
-WX_ARG_FEATURE(uxtheme,     [  --enable-uxtheme        enable support for Windows XP themed look (Win32 only)], wxUSE_UXTHEME)
 WX_ARG_FEATURE(wxdib,       [  --enable-wxdib          use wxDIB class (Win32 only)], wxUSE_DIB)
 
 dnl Turn off MSW-only IE webview backend here to avoid reporting it as "on" in
@@ -1310,15 +1314,20 @@ if test "x$wxUSE_MACOSX_VERSION_MIN" = "xno"; then
 elif test "x$wxUSE_MACOSX_VERSION_MIN" = "xyes"; then
     if test "x$wxUSE_MACOSX_SDK" != "x"; then
         AC_MSG_CHECKING([SDK deployment version])
-dnl We need to quote the next line where we don't need macros and do need [] in the regex
-[
-        MACOSX_SDK_PLIST_VERSION_MIN=`defaults read "$wxUSE_MACOSX_SDK/SDKSettings" buildSettings | grep '^ *"\{0,1\}MACOSX_DEPLOYMENT_TARGET"\{0,1\} *= *"\{0,1\}[^"]*"\{0,1\}; *$' | sed 's/^ *"\{0,1\}MACOSX_DEPLOYMENT_TARGET"\{0,1\} *= *"\{0,1\}\([^"]*\)"\{0,1\} *; *$/\1/'`
-]
-        # If that failed, try again with the new key
+        defaultProperties=`defaults read "$wxUSE_MACOSX_SDK/SDKSettings" DefaultProperties`
+
+        dnl Take the first (earliest, because they are sorted) supported
+        dnl deployment target from the SDKSettings.plist file and remove
+        dnl leading spaces, quotes and trailing comma from it.
+        MACOSX_SDK_PLIST_VERSION_MIN=`echo "$defaultProperties" | sed -n -e '1,/DEPLOYMENT_TARGET_SUGGESTED_VALUES/d; s/^ *//; s/"//g; s/,//p; q'`
+
+        dnl If DEPLOYMENT_TARGET_SUGGESTED_VALUES doesn't exist, as it was in
+        dnl 10.11..10.13 SDKs, try MACOSX_DEPLOYMENT_TARGET instead.
         if test "x$MACOSX_SDK_PLIST_VERSION_MIN" = "x"; then
-[
-            MACOSX_SDK_PLIST_VERSION_MIN=`defaults read "$wxUSE_MACOSX_SDK/SDKSettings" DefaultProperties | grep '^ *"\{0,1\}MACOSX_DEPLOYMENT_TARGET"\{0,1\} *= *"\{0,1\}[^"]*"\{0,1\}; *$' | sed 's/^ *"\{0,1\}MACOSX_DEPLOYMENT_TARGET"\{0,1\} *= *"\{0,1\}\([^"]*\)"\{0,1\} *; *$/\1/'`
-]
+            dnl We need to quote the next line where we don't need macros and do need [] in the regex
+            [
+                MACOSX_SDK_PLIST_VERSION_MIN=`echo "$defaultProperties" | sed -n -e 's/^ *"\{0,1\}MACOSX_DEPLOYMENT_TARGET"\{0,1\} *= *"\{0,1\}\([^"]*\)"\{0,1\} *; *$/\1/p'`
+            ]
         fi
 
         if test "x$MACOSX_SDK_PLIST_VERSION_MIN" != "x"; then
@@ -7322,10 +7331,6 @@ if test "$wxUSE_MSW" = 1 ; then
 
     if test "$wxUSE_TASKBARBUTTON" = "yes"; then
         AC_DEFINE(wxUSE_TASKBARBUTTON)
-    fi
-
-    if test "$wxUSE_UXTHEME" = "yes"; then
-        AC_DEFINE(wxUSE_UXTHEME)
     fi
 
 fi
