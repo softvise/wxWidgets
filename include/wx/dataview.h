@@ -918,8 +918,9 @@ public:
         m_dataSize(event.m_dataSize),
         m_dragFlags(event.m_dragFlags),
         m_dropEffect(event.m_dropEffect),
+        m_activeDropIndex(event.m_activeDropIndex),
         m_proposedDropIndex(event.m_proposedDropIndex),
-        m_dropHint(event.m_proposedDropIndex)
+        m_dropHint(event.m_dropHint)
 #endif
         { }
 
