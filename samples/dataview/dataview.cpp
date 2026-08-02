@@ -1337,7 +1337,7 @@ void MyFrame::OnPageChanged( wxBookCtrlEvent& WXUNUSED(event) )
             break;
 #if wxUSE_DRAG_AND_DROP
         case ID_SCROLL_ON_DRAG:
-            style = ID_SCROLL_ON_DRAG;
+            style = wxDV_SCROLL_ON_DRAG;
             break;
 #endif // wxUSE_DRAG_AND_DROP
         case ID_ROW_LINES:
